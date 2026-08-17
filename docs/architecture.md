@@ -9,6 +9,20 @@ So `src/bot/` must not gain internal state that depends on real time, nor
 `Date.now()`, nor a Vue import. Vue code shared between components (composables,
 display settings) goes in `src/ui/` instead.
 
+**A state change landing inside a fade blends from the frozen frame.** The engine keeps
+only one slot of history, so the origin of the new blend used to become the *full* pose of
+the state being left, rather than the partly-blended frame that was actually on screen —
+a jump of 26 to 43 px against the 10 to 14 px a spaced change produces. `setState` now
+freezes the composite pose and blends from it, which is continuous however many changes
+are chained.
+
+**Only when a fade is in progress.** Freezing on every change would stop the outgoing
+state's own animation dead for the whole fade — `alert`'s travelling "!" would halt
+mid-course — and there is nothing to fix outside a fade, where the state being left *is*
+the displayed frame. Montage playback, whose blocks last at least the longest fade, never
+freezes anything and renders byte for byte what it did before: verified over 1921 frames
+of the default cycle, the 15-state board, and a re-read of an arbitrary date.
+
 **`sample()` must not mutate either.** Purging a "stale" previous state during
 playback looks like an innocent optimisation and makes the engine non-replayable:
 re-reading a date from before the end of a fade would no longer find it. This
@@ -24,9 +38,13 @@ break every measured duration at once.
 
 Hence two floors:
 
-- `MIN_BLOCK` (0.6 s): the engine keeps only one slot of history, so a block
-  shorter than the next one's entry morph would jump on screen. 0.6 s is also the
-  longest `morph` in the catalogue (`orbit`).
+- `MIN_BLOCK`, **derived** from the longest `morph` in the catalogue (`orbit`, 0.6 s),
+  not written by hand — it used to be, and it only worked because 0.6 happened to be
+  that maximum.
+  It no longer exists to prevent a jump: a state change landing *inside* a fade now
+  blends from the frozen composite pose (see below), so it is continuous whatever the
+  block length. What the floor still buys is readability — a track of tenth-of-a-second
+  cards can't be edited — and a fade that has room to be seen.
 - `StateDef.minDuration`: the date at which the animation resolves, read off the
   constants in that state's `pose()`. Worth filling in for any new narrative
   state.

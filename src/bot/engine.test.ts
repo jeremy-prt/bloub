@@ -446,3 +446,98 @@ describe('reset', () => {
     expect(e.sample(0.3).bodyPath).toBe(tot)
   })
 })
+
+/**
+ * Un changement d'etat qui arrive PENDANT un fondu.
+ *
+ * Le moteur ne garde qu'une case d'historique, donc l'origine du nouveau melange devenait la
+ * pose PLEINE de l'etat qu'on quittait, au lieu de l'image partiellement melangee qui etait
+ * a l'ecran : un saut. Il melange desormais depuis la pose composite figee au moment du
+ * changement.
+ *
+ * Mesure : le deplacement d'un oeil sur les deux images qui suivent un changement. Un
+ * changement ESPACE en produit 10 a 14 px, et c'est voulu — l'`easeOutQuint` releve sur la
+ * video demarre raide. Ce qui ne l'etait pas, c'est les 26 a 43 px d'un changement en plein
+ * fondu.
+ */
+describe('changement d etat pendant un fondu', () => {
+  const IMAGE = 1 / 60
+
+  /** Deplacement max d'un oeil sur les deux images qui suivent `at`. */
+  function sautApres(changements: Array<[StateId, number]>, at: number) {
+    const e = new BotEngine(100, 'idle')
+    const distances: Array<{ t: number; d: number[] }> = []
+    let i = 0
+    for (let t = 0; t <= at + 4 * IMAGE; t += IMAGE) {
+      while (i < changements.length && changements[i]![1] <= t + 1e-9) {
+        e.setState(changements[i]![0], changements[i]![1])
+        i++
+      }
+      distances.push({
+        t,
+        d: e.sample(t).eyes.map((y) => {
+          const n = y.matrix.match(/-?\d+\.?\d*/g)!.map(Number)
+          return Math.hypot(n[4]!, n[5]!)
+        })
+      })
+    }
+    let pire = 0
+    for (let k = 1; k < distances.length; k++) {
+      const a = distances[k - 1]!
+      const b = distances[k]!
+      if (a.d.length !== b.d.length || b.t <= at || b.t > at + 2.5 * IMAGE) continue
+      pire = Math.max(pire, ...a.d.map((v, j) => Math.abs(v - b.d[j]!)))
+    }
+    return pire
+  }
+
+  /** Reference : le meme changement, mais espace. C'est le mouvement normal. */
+  const NORMAL = 14
+
+  it('ne saute pas plus qu un changement espace', () => {
+    const espace = sautApres([['wide', 0.5], ['idle', 2]], 2)
+    expect(espace).toBeLessThan(NORMAL)
+
+    // 100 ms apres le premier, donc en plein fondu de 0,55 s
+    expect(sautApres([['wide', 0.5], ['idle', 0.6]], 0.6)).toBeLessThanOrEqual(espace)
+  })
+
+  it('tient sur des changements enchaines', () => {
+    const suite: Array<[StateId, number]> = [
+      ['wide', 0.5],
+      ['idle', 0.55],
+      ['egg', 0.6],
+      ['orbit', 0.65],
+      ['notify', 0.7]
+    ]
+    for (const [, at] of suite.slice(1)) {
+      expect(sautApres(suite, at), `changement a ${at}s`).toBeLessThan(NORMAL)
+    }
+  })
+
+  /**
+   * Et la lecture ESPACEE ne change pas : les blocs d'un montage durent au moins le plus
+   * long fondu, donc rien n'y est jamais fige. Verifie sur la sequence complete, image par
+   * image — c'est ce qui protege les animations relevees.
+   */
+  it('ne change rien a une lecture espacee', () => {
+    const suite: Array<[StateId, number]> = [
+      ['thinking', 1],
+      ['wink', 2],
+      ['alert', 3]
+    ]
+    const avecHistorique = new BotEngine(100, 'idle')
+    let i = 0
+    const images: string[] = []
+    for (let t = 0; t < 4; t += IMAGE) {
+      while (i < suite.length && suite[i]![1] <= t + 1e-9) {
+        avecHistorique.setState(suite[i]![0], suite[i]![1])
+        i++
+      }
+      images.push(avecHistorique.sample(t).bodyPath)
+    }
+    // aucune image vide, et le "!" d'`alert` bouge encore pendant qu'il se fond
+    expect(images.every((p) => p.length > 0)).toBe(true)
+    expect(new Set(images.slice(-12)).size).toBeGreaterThan(1)
+  })
+})

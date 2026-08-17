@@ -70,6 +70,12 @@ Details and the reasoning behind each are in [docs/](docs/):
   `capsule` + `effraye` through.
 - **States declare `ArcSpec`; only the engine rasterises.** Don't call `arcRender`
   from `states.ts`.
+- **A state change landing inside a fade blends from the FROZEN composite pose**
+  (`setState`), not from the full pose of the state being left — the engine has one slot of
+  history, and using it naively jumped 26–43 px where a spaced change moves 10–14. It
+  freezes **only** when a fade is in progress: doing it always would halt the outgoing
+  state's own animation for the whole fade. Spaced playback is byte-identical, and a test
+  locks both halves.
 - **Transitions are exponential ease-outs and the body never overshoots.** The one
   spring is the notification pop (`NOTIF_POP = 1.14`). There is deliberately no
   spring engine. A new bouncing effect belongs in the state that needs it.

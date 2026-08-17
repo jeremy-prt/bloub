@@ -131,6 +131,11 @@ export class BotEngine {
 
   private cur: StateId
   private prev: StateId | null = null
+  /**
+   * Pose de depart FIGEE, posee seulement quand un changement d'etat arrive alors qu'un
+   * fondu est deja en cours. Cf. `setState`.
+   */
+  private departFige: Pose | null = null
   private tCur = 0
   private tPrev = 0
   private blinkAt = -10
@@ -347,13 +352,67 @@ export class BotEngine {
   reset(id: StateId, now: number) {
     this.cur = id
     this.prev = null
+    this.departFige = null
     this.tCur = now
     this.tPrev = now
     this.blinkAt = -10
   }
 
+  /**
+   * Origine du fondu en cours : la pose figee s'il y en a une, sinon l'etat quitte evalue
+   * a son propre temps ecoule — donc encore en train de s'animer, ce qui est voulu.
+   */
+  private origine(
+    now: number,
+    shape: number[] | null,
+    expr: BotExpression | null
+  ): Pose | null {
+    if (this.departFige) return this.departFige
+    if (!this.prev) return null
+    const prevDef = STATE_BY_ID.get(this.prev)!
+    return this.posed(prevDef, Math.max(0, now - this.tPrev), shape, expr)
+  }
+
+  /**
+   * Pose composite a l'instant `now`, fondu en cours compris : exactement ce que `sample`
+   * melange, avant la couche de vie au repos et de regard. Extraite pour que `setState`
+   * puisse la figer.
+   */
+  private poseComposee(now: number): Pose {
+    const def = STATE_BY_ID.get(this.cur)!
+    const shape = this.shapeAtTime(now)
+    const expr = this.exprAtTime(now)
+    const pose = this.posed(def, Math.max(0, now - this.tCur), shape, expr)
+    const since = now - this.tCur
+    if (since >= def.morph) return pose
+    const origine = this.origine(now, shape, expr)
+    if (!origine) return pose
+    return blendPose(origine, pose, easings.easeOutQuint(clamp(since / def.morph)))
+  }
+
+  /**
+   * Changement d'etat, date.
+   *
+   * Le moteur ne garde qu'UNE case d'historique, donc un changement qui arrive pendant un
+   * fondu remplacait l'origine du melange par la pose PLEINE de l'etat qu'on quittait, au
+   * lieu de l'image partiellement melangee qui etait a l'ecran. Mesure sur
+   * `idle -> wide -> idle` a 100 ms : 35,9 px de saut contre 8,0 px de mouvement normal.
+   *
+   * On fige donc la pose composite courante et on melange depuis elle. Continu par
+   * construction, quel que soit le nombre de changements enchaines.
+   *
+   * Et SEULEMENT dans ce cas. Figer a chaque changement arreterait net l'animation de
+   * l'etat qu'on quitte pendant tout le fondu — le « ! » d'`alert` se figerait en pleine
+   * course — alors qu'il n'y a rien a corriger hors morph : l'etat quitte y est deja
+   * exactement l'image affichee. La lecture d'un montage, dont les blocs durent au moins
+   * le plus long fondu (`MIN_BLOCK`), ne fige donc jamais rien et rend au bit ce qu'elle
+   * rendait.
+   */
   setState(id: StateId, now: number) {
     if (id === this.cur) return
+    const morph = STATE_BY_ID.get(this.cur)!.morph
+    const enPleinFondu = this.prev !== null && now - this.tCur < morph
+    this.departFige = enPleinFondu ? this.poseComposee(now) : null
     this.prev = this.cur
     this.tPrev = this.tCur
     this.cur = id
@@ -376,21 +435,25 @@ export class BotEngine {
     // l'ignorer une fois le fondu passe, et l'oublier rendrait le moteur non
     // rejouable — relire une date d'avant la fin du fondu ne le retrouverait
     // plus. C'est l'optimisation qui parait innocente et qui casse tout.
-    if (this.prev && since < def.morph) {
-      const prevDef = STATE_BY_ID.get(this.prev)!
-      const prevPose = this.posed(prevDef, Math.max(0, now - this.tPrev), shape, expr)
+    const origine = since < def.morph ? this.origine(now, shape, expr) : null
+    if (origine) {
       // Ease-out exponentiel : c'est la courbe mesuree sur la video. Le corps
       // n'a pas d'overshoot (seuls la pastille et l'ouverture des yeux en ont).
       // Le ratio est borne : relire une date ANTERIEURE au changement d'etat
       // donnerait un ratio negatif, que l'ease-out extrapole — la silhouette
       // part alors trente fois trop loin.
       const ratio = easings.easeOutQuint(clamp(since / def.morph))
-      pose = blendPose(prevPose, pose, ratio)
-      // le decalage des yeux suit la MEME courbe que la silhouette qui le motive
-      const avant = this.decalageAtTime(now, this.prev)
-      decalage = {
-        x: lerp(avant.x, decalage.x, ratio),
-        y: lerp(avant.y, decalage.y, ratio)
+      pose = blendPose(origine, pose, ratio)
+      // Le decalage des yeux suit la MEME courbe que la silhouette qui le motive. Il vient
+      // de l'etat quitte, que `setState` renseigne toujours en meme temps que l'origine —
+      // le test est la pour le typage, pas pour un cas reel.
+      const quitte = this.prev
+      if (quitte) {
+        const avant = this.decalageAtTime(now, quitte)
+        decalage = {
+          x: lerp(avant.x, decalage.x, ratio),
+          y: lerp(avant.y, decalage.y, ratio)
+        }
       }
     }
 
