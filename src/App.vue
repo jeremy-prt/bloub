@@ -626,19 +626,19 @@ const etatExport = ref<EtatExport>('pret')
 let confirmation: ReturnType<typeof setTimeout> | undefined
 
 /**
- * Exporte l'avatar tel qu'il est AFFICHE : `ExportBar` ne fait que demander un
- * format, le SVG a capturer est ici, comme le montage et les skins.
- *
- * Ce que l'utilisateur voit est bien ce qu'il obtient, au cadrage pres — c'est
- * le noeud vivant qui est serialise, pas un second rendu monte a cote.
- */
-/**
  * Fond du GIF, et boite qui le demande. Le GIF est le SEUL format a poser la
  * question : lui seul a une transparence sur un bit, donc un bord dur a arbitrer.
  */
 const fondGif = ref<FondGif>(FOND_GIF_DEFAUT)
 const dialogueGif = ref(false)
 
+/**
+ * Exporte l'avatar tel qu'il est AFFICHE : `ExportBar` ne fait que demander un
+ * format, le SVG a capturer est ici, comme le montage et les skins.
+ *
+ * Ce que l'utilisateur voit est bien ce qu'il obtient, au cadrage pres — c'est
+ * le noeud vivant qui est serialise, pas un second rendu monte a cote.
+ */
 async function exporte(id: ActionId, confirme = false) {
   // Garde SYNCHRONE, en plus du `disabled` du bouton : celui-ci n'existe qu'apres
   // un rendu, donc deux clics dans la meme image telechargeaient deux fois.

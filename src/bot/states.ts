@@ -167,7 +167,6 @@ export type StateId =
 
 export interface StateDef {
   id: StateId
-  hint: string
   /** duree de maintien quand la sequence complete est jouee */
   duration: number
   /**
@@ -207,7 +206,6 @@ function dotPulse(t: number, index: number): number {
 export const STATES: StateDef[] = [
   {
     id: 'idle',
-    hint: 'Boule, yeux gélules inclinés, dérive du regard et clignements',
     duration: 2.4,
     morph: 0.45,
     blinkIn: false,
@@ -218,7 +216,6 @@ export const STATES: StateDef[] = [
 
   {
     id: 'thinking',
-    hint: 'Trois points, onde de pulsation de gauche à droite',
     duration: 2.6,
     morph: 0.4,
     baseFace: false,
@@ -248,7 +245,6 @@ export const STATES: StateDef[] = [
 
   {
     id: 'wink',
-    hint: 'Œil extérieur fermé en tiret, œil intérieur grand ouvert',
     duration: 1.6,
     morph: 0.3,
     blinkIn: true,
@@ -269,7 +265,6 @@ export const STATES: StateDef[] = [
 
   {
     id: 'wide',
-    hint: 'Yeux deux fois plus grands, regard vers le bas',
     duration: 1.8,
     morph: 0.55,
     blinkIn: true,
@@ -285,7 +280,6 @@ export const STATES: StateDef[] = [
 
   {
     id: 'alert',
-    hint: "Point d'exclamation penché qui traverse en vibrant",
     duration: 2.4,
     // le "!" revient en place a 1.6 + 0.4
     minDuration: 2,
@@ -322,7 +316,6 @@ export const STATES: StateDef[] = [
 
   {
     id: 'notify',
-    hint: 'Pastille bleue sur le contour, encoche creusée, gros yeux ronds',
     duration: 2.2,
     morph: 0.5,
     blinkIn: true,
@@ -351,7 +344,6 @@ export const STATES: StateDef[] = [
 
   {
     id: 'exclaim',
-    hint: "Point d'exclamation vertical, barre tronconique",
     duration: 2,
     morph: 0.45,
     baseFace: false,
@@ -367,7 +359,6 @@ export const STATES: StateDef[] = [
 
   {
     id: 'sleep',
-    hint: 'Réduction en un point qui rebondit verticalement',
     duration: 2.4,
     morph: 0.5,
     baseFace: false,
@@ -383,7 +374,6 @@ export const STATES: StateDef[] = [
 
   {
     id: 'egg',
-    hint: 'Même hauteur que la boule, rétréci en largeur, plus large en bas',
     duration: 1.8,
     morph: 0.4,
     baseFace: false,
@@ -401,7 +391,6 @@ export const STATES: StateDef[] = [
 
   {
     id: 'hexagon',
-    hint: 'Hexagone pointe en haut, coins très arrondis',
     duration: 1.6,
     morph: 0.4,
     baseFace: false,
@@ -418,7 +407,6 @@ export const STATES: StateDef[] = [
 
   {
     id: 'play',
-    hint: "Triangle arrondi, bouquet d'arcs colorés qui le balaie",
     duration: 2,
     morph: 0.5,
     baseFace: false,
@@ -445,7 +433,6 @@ export const STATES: StateDef[] = [
 
   {
     id: 'orbit',
-    hint: 'Anneaux arc-en-ciel en orbite 3D, le triangle tourne puis se relâche',
     duration: 3.4,
     // le corps a fini de se relacher du triangle vers la boule a 1.6 + 0.9
     minDuration: 2.5,
@@ -512,7 +499,6 @@ export const STATES: StateDef[] = [
      * catalogue, c'est une transition d'interface.
      */
     id: 'swirl',
-    hint: 'Anneaux arc-en-ciel courts, entree de la vue des reglages',
     // un peu plus que le tour du regard (`TURN_TIME`, 1,1 s) : les yeux doivent
     // etre poses a gauche avant que les anneaux ne s'effacent
     duration: 1.3,
@@ -539,7 +525,6 @@ export const STATES: StateDef[] = [
 
   {
     id: 'burst',
-    hint: 'Le corps se disperse en particules qui spiralent puis se recompose',
     duration: 2.6,
     // le corps est recompose a 1.7 + 0.7
     minDuration: 2.4,
@@ -562,7 +547,6 @@ export const STATES: StateDef[] = [
 
   {
     id: 'comet',
-    hint: 'Le point reste au centre, la traînée arc-en-ciel lui tourne autour',
     duration: 2.4,
     // le point se recompose a 1.85 + 0.6 = 2.45, soit 0.05 s apres la coupe de
     // la video : ce reliquat se termine pendant le fondu suivant, comme dans la

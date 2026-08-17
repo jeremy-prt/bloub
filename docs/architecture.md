@@ -193,8 +193,9 @@ neatness, but because that is what makes the compiler check that every entry has
 its label in all three languages. Adding a shape without its label doesn't
 compile.
 
-One exception, and it's an oversight rather than a design: `StateDef.hint` still
-holds a hardcoded French string per state. Nothing reads it.
+There used to be one exception, `StateDef.hint`: a hardcoded French string per state that
+nothing read. It is gone — a label in `src/bot/` contradicts the rule above, and this
+field would have gone out in a public type.
 
 ## One state is not measured: `swirl`
 

@@ -4,15 +4,8 @@
  * vit dans `capture.ts`, elle, parce qu'elle a besoin d'un canvas.
  */
 
+import { DEMI_VIEWBOX, RAYON } from '@/bot/repere'
 import { SHAPES } from '@/bot/skins'
-
-/**
- * Rayon de la boule au repos, en unites de viewBox : c'est le `scale` que
- * BloubBot.vue passe a `BotEngine` (son `R`). Redit ici et non importe parce
- * qu'un `<script setup>` ne peut rien exporter. Ce qui compte est verrouille
- * par un test : le cadre doit contenir TOUTES les formes.
- */
-const RAYON_BOULE = 100
 
 /**
  * Marge autour de la forme la plus large. Huit pour cent : c'est ce qui permet
@@ -41,7 +34,7 @@ export const RAYON_MAX = Math.max(...SHAPES.map((forme) => Math.max(...forme.rad
  * pareil a l'oeil », or les recadrer separement remettrait chacune a la meme
  * taille et casserait ce reglage.
  */
-export const DEMI_CADRE = Math.ceil(RAYON_BOULE * RAYON_MAX * MARGE)
+export const DEMI_CADRE = Math.ceil(RAYON * RAYON_MAX * MARGE)
 
 /** viewBox du document exporte, centre sur la boule. */
 export function viewBoxExport(demi = DEMI_CADRE) {
@@ -49,17 +42,14 @@ export function viewBoxExport(demi = DEMI_CADRE) {
 }
 
 /**
- * Demi-cote du viewBox de l'ECRAN, cf. le `VB` de BloubBot.vue.
+ * Demi-cote du viewBox de l'ECRAN.
  *
- * C'est celui qu'il faut pour exporter un CYCLE, et pas le cadre serre : la marge
- * que le cadre serre supprime est justement celle qui loge les anneaux des etats
- * animes. Ils montent a 1,4 fois le rayon de la boule, soit 140 — donc au-dela des
- * 125 du cadre serre, qui les rognerait. Un test le verrouille.
- *
- * Rien ne borne ces rayons au runtime : c'est le reglage a la main des tableaux
- * `RINGS` et `SWOOSH` (decor.ts) qui les tient sous 158.
+ * C'est celui qu'il faut pour exporter un CYCLE, et pas le cadre serre : la marge que le
+ * cadre serre supprime est justement celle qui loge les anneaux des etats animes. Ils
+ * montent a 1,4 fois le rayon de la boule, soit 140 — donc au-dela des 125 du cadre serre,
+ * qui les rognerait. Un test le verrouille.
  */
-export const DEMI_ECRAN = 158
+export const DEMI_ECRAN = DEMI_VIEWBOX
 
 export type ActionId = 'png' | 'svg' | 'anime' | 'gif' | 'copie' | 'copieSvg'
 

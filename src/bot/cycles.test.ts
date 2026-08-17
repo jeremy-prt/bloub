@@ -17,7 +17,7 @@ import {
   type Cycle,
   uniqueName
 } from './cycles'
-import { SEQUENCE, STATE_BY_ID } from './states'
+import { SEQUENCE, STATES, STATE_BY_ID } from './states'
 
 describe('cycle par defaut', () => {
   it('reprend la sequence relevee sur la video, dans l ordre', () => {
@@ -170,6 +170,18 @@ describe('relecture du stockage', () => {
     const blocs = Array.from({ length: 5000 }, () => ({ state: 'idle', duration: 10 }))
     const raw = JSON.stringify([{ id: 'c1', name: 'A', blocks: blocs }])
     expect(parseCycles(raw)[0]!.blocks).toHaveLength(MAX_BLOCS)
+  })
+
+  /*
+   * Le plancher est DERIVE du plus long `morph`, il n'est plus ecrit a la main. Ce test
+   * garde le lien visible : il valait 0,6 en dur, ce qui ne marchait que parce que 0,6
+   * etait justement le morph d'`orbit`. Un etat qui morphe plus lentement le suit.
+   */
+  it('le plancher de bloc couvre le plus long fondu du catalogue', () => {
+    const plusLong = Math.max(...STATES.map((s) => s.morph))
+    expect(MIN_BLOCK).toBeGreaterThanOrEqual(plusLong)
+    // et il n'est pas gratuitement plus grand : c'est exactement ce fondu
+    expect(MIN_BLOCK).toBe(plusLong)
   })
 
   it('borne aussi l ajout depuis l editeur, pas seulement la relecture', () => {

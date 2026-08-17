@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { RAYON } from '@/bot/repere'
 import { SHAPES } from '@/bot/skins'
 import {
   ACTIONS,
@@ -23,7 +24,7 @@ import {
 } from './export'
 
 /** Rayon de la boule au repos, cf. le `R` de BloubBot.vue. */
-const RAYON_BOULE = 100
+
 
 /** Demi-cote du viewBox affiche a l'ecran, cf. le `VB` de BloubBot.vue. */
 const VB_ECRAN = 158
@@ -36,14 +37,14 @@ describe('cadre d export', () => {
    */
   it('contient toutes les formes du personnalisateur', () => {
     for (const forme of SHAPES) {
-      const rayon = Math.max(...forme.radii) * RAYON_BOULE
+      const rayon = Math.max(...forme.radii) * RAYON
       expect(rayon, `la forme « ${forme.id} » depasse du cadre`).toBeLessThan(DEMI_CADRE)
     }
   })
 
   it('laisse une marge pour le rognage circulaire d une photo de profil', () => {
     // La boule au repos ne doit pas toucher le bord : entre 70 % et 90 % du cadre.
-    const remplissage = RAYON_BOULE / DEMI_CADRE
+    const remplissage = RAYON / DEMI_CADRE
     expect(remplissage).toBeGreaterThan(0.7)
     expect(remplissage).toBeLessThan(0.9)
   })

@@ -49,6 +49,10 @@ Details and the reasoning behind each are in [docs/](docs/):
   a radial profile, or `profileFromPolygon`.
 - **The eyes are holes in a `<mask>`**, not white shapes on top. That's what makes
   them clip against the silhouette on their own.
+- **The render frame lives in `src/bot/repere.ts`**: `RAYON` (100) and `DEMI_VIEWBOX`
+  (158) define what `sample()` returns, so they can't sit in a `<script setup>` where
+  nothing can import them — `export.ts` used to redeclare one by hand. The Vue component
+  is a client of the engine, not its definition.
 - **Anything sitting "on" the body must follow its real radius**: `radiusAtAngle`
   (defined in `shape.ts`, applied by `engine.ts`) for the eyes and the notification
   pastille. A new element anchored to the outline needs the same treatment.
@@ -83,8 +87,7 @@ Details and the reasoning behind each are in [docs/](docs/):
 - **Labels don't live in `src/bot/`.** The catalogues carry ids and the display
   resolves `t('states.orbit')`. Their ids are **literal unions** so the compiler
   checks that every entry has a label in all three languages. Adding a shape
-  without its label doesn't compile. (`StateDef.hint` is a leftover French string
-  nothing reads.)
+  without its label doesn't compile.
 - **One state isn't measured: `swirl`**, the settings view's entry transition. It's
   deliberately outside `SEQUENCE` (a test locks that) and carries both `baseBody`
   and `baseFace`.

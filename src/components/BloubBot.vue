@@ -17,6 +17,7 @@ import {
   mixHex
 } from '@/bot/skins'
 import { blockAt, defaultCycle, offsetOf, type Block } from '@/bot/cycles'
+import { DEMI_VIEWBOX, RAYON } from '@/bot/repere'
 import { STATE_BY_ID, type StateId } from '@/bot/states'
 
 const props = withDefaults(
@@ -80,9 +81,11 @@ const playing = defineModel<boolean>('playing', { default: false })
 /** Temps ecoule dans le bloc courant, pour la tete de lecture de la timeline. */
 const elapsed = defineModel<number>('elapsed', { default: 0 })
 
-/** Rayon de la boule au repos en unites de viewBox ; la marge loge les anneaux. */
-const R = 100
-const VB = 158
+// Le repere vient de `src/bot/` : c'est lui qui definit ce que le moteur rend, le
+// composant n'en est qu'un client. Les noms courts restent, ils sont partout dans le
+// gabarit.
+const R = RAYON
+const VB = DEMI_VIEWBOX
 
 const shapeRadii = computed(() => SHAPE_BY_ID.get(props.shape)?.radii ?? null)
 const ink = computed(() => COLOR_BY_ID.get(props.color)?.hex ?? '#0a0a0c')

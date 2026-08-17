@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BASE_SCALE, clampZoom, MAX_ZOOM, MIN_ZOOM, mmss, ticksFor } from './timeline'
+import * as timeline from './timeline'
 
 describe('mise en forme', () => {
   it('ecrit le temps en minutes et secondes', () => {
@@ -10,7 +11,18 @@ describe('mise en forme', () => {
     expect(mmss(-3)).toBe('0:00')
   })
 
-  it('ecrit les durees a la francaise', () => {
+  /*
+   * Ce test etait VIDE : il ne verifiait rien et comptait quand meme dans le total. Il
+   * restait de l'epoque ou la mise en forme localisee vivait ici. On lui fait donc dire ce
+   * qu'il pretendait — que ce module reste PUR, sans langue.
+   *
+   * Le separateur decimal change avec la langue et l'unite se traduit, donc les durees en
+   * secondes passent par `secondes` / `secondesCourtes` de `@/i18n`. `mmss` reste ici : le
+   * format mm:ss n'a ni unite ni separateur decimal.
+   */
+  it('ne met en forme aucune duree localisee : ca appartient a i18n', () => {
+    expect(Object.keys(timeline).filter((n) => /^secondes/.test(n))).toEqual([])
+    expect(mmss(65)).toBe('1:05')
   })
 
 })

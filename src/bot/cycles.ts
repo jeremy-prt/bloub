@@ -1,4 +1,4 @@
-import { SEQUENCE, STATE_BY_ID, type StateId } from './states'
+import { SEQUENCE, STATES, STATE_BY_ID, type StateId } from './states'
 
 /**
  * Un cycle est un montage : une suite de blocs, chacun un etat tenu pendant une
@@ -23,11 +23,15 @@ export interface Cycle {
 
 /**
  * Plancher commun a tous les blocs. Le moteur ne garde qu'une case d'historique
- * (`BotEngine.setState` ecrase `prev`), donc un bloc plus court que le fondu
- * d'entree du bloc suivant — 0,6 s pour le plus long, celui d'`orbit` — saute a
- * l'image au lieu de se fondre.
+ * (`BotEngine.setState` ecrase `prev`), donc un bloc plus court que le fondu d'entree du
+ * bloc suivant saute a l'image au lieu de se fondre.
+ *
+ * DERIVE du catalogue et non ecrit a la main. La valeur etait 0,6, ce qui marchait
+ * uniquement parce que 0,6 se trouvait etre le plus long `morph` du catalogue — celui
+ * d'`orbit`. Rien ne le garantissait : ajouter un etat qui morphe en 0,8 s aurait fait
+ * trembler l'editeur sans qu'aucun test ne bronche. Maintenant le plancher suit.
  */
-export const MIN_BLOCK = 0.6
+export const MIN_BLOCK = Math.max(...STATES.map((s) => s.morph))
 
 /**
  * Garde-fou d'editeur, pas une mesure : allonger un bloc est sans risque (les
