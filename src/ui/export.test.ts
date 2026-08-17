@@ -119,6 +119,7 @@ describe('export d un cycle', () => {
     expect(DEMI_CADRE).toBeLessThan(RAYON_ARCS)
   })
 
+
   it('ne propose ni SVG anime ni format hors video', () => {
     // le corps morphe a chaque image : 2,5 ko de chemin fois six cents images
     expect(FORMATS_CYCLE).toEqual(['mp4', 'gif'])

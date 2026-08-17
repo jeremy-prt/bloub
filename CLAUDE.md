@@ -120,6 +120,17 @@ Details and the reasoning behind each are in [docs/](docs/):
 The README is for people arriving at the repository: what the project is, how to
 run it, the component's API. Don't duplicate it here.
 
+## Tests
+
+`pnpm test` runs in `node` by default. **One file asks for a DOM** and says so on its first
+line (`// @vitest-environment happy-dom`): `ui/capture.test.ts`, which mounts `BloubBot.vue`
+to check the off-screen player — the exported render must be the component's own, not a
+second drawing built beside it. That is also why `vitest.config.ts` carries the Vue plugin.
+Keep the DOM per-file: a global DOM environment would slow the whole suite for one test.
+
+`capture.test.ts` is the one that catches what nothing else can — the export defects are
+invisible short of stepping through an MP4 frame by frame.
+
 ## Generated files
 
 `src/bot/profiles.ts` is produced by `tools/extract-profiles.py` from the video's

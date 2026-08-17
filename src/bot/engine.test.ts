@@ -403,3 +403,46 @@ describe('robustesse du regard', () => {
     expect(amplitude(sansPointeur)).toBeGreaterThan(5 * amplitude(avecPointeur))
   })
 })
+
+/**
+ * `reset` : repartir sur un etat SANS historique.
+ *
+ * C'est une methode publique de plus sur ce qui doit devenir une API, donc elle merite son
+ * test direct et pas seulement la couverture indirecte du lecteur hors ecran.
+ */
+describe('reset', () => {
+  it('oublie l etat precedent, la ou setState le garde pour le fondre', () => {
+    const avecFondu = new BotEngine(100, 'idle')
+    avecFondu.setState('egg', 0)
+    const remis = new BotEngine(100, 'idle')
+    remis.reset('egg', 0)
+
+    // au debut du morph, l'un melange encore le repos, l'autre est deja l'oeuf
+    expect(avecFondu.sample(0).bodyPath).not.toBe(remis.sample(0).bodyPath)
+    // et l'oeuf seul est bien ce qu'un moteur neuf sur `egg` rend
+    expect(remis.sample(0).bodyPath).toBe(new BotEngine(100, 'egg').sample(0).bodyPath)
+  })
+
+  /*
+   * Compare a date ABSOLUE egale, et pas une pose datee a 0 contre une datee a 5 : la derive
+   * au repos depend du temps absolu, donc deux dates differentes ne donnent jamais le meme
+   * chemin, meme sur un etat dont la pose est fixe. La comparaison ne dirait rien.
+   */
+  it('date l etat ou on le lui dit', () => {
+    const tot = new BotEngine(100, 'idle')
+    tot.reset('alert', 0)
+    const tard = new BotEngine(100, 'idle')
+    tard.reset('alert', 5)
+    // le "!" traverse : a la meme date absolue, l'un en est a 5 s et l'autre au debut
+    expect(tot.sample(5).bodyPath).not.toBe(tard.sample(5).bodyPath)
+    expect(tard.state).toBe('alert')
+  })
+
+  it('laisse sample une fonction pure du temps', () => {
+    const e = new BotEngine(100, 'idle')
+    e.reset('orbit', 0)
+    const tot = e.sample(0.3).bodyPath
+    e.sample(9)
+    expect(e.sample(0.3).bodyPath).toBe(tot)
+  })
+})

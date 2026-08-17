@@ -167,7 +167,7 @@ describe('relecture du stockage', () => {
    * de 29 700 000 px : l'onglet figeait en entrant dans la vue Animations.
    */
   it('borne la taille d un montage relu', () => {
-    const blocs = Array.from({ length: 5000 }, () => ({ state: 'idle', duration: 10 }))
+    const blocs = Array.from({ length: 200_000 }, () => ({ state: 'idle', duration: 10 }))
     const raw = JSON.stringify([{ id: 'c1', name: 'A', blocks: blocs }])
     expect(parseCycles(raw)[0]!.blocks).toHaveLength(MAX_BLOCS)
   })
@@ -194,7 +194,7 @@ describe('relecture du stockage', () => {
 
   it('borne le nombre de montages relus', () => {
     const raw = JSON.stringify(
-      Array.from({ length: 500 }, (_, i) => ({
+      Array.from({ length: 5000 }, (_, i) => ({
         id: `c${i}`,
         name: `A${i}`,
         blocks: [{ state: 'idle', duration: 2 }]

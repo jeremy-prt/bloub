@@ -183,14 +183,14 @@ export async function cycleVersMp4(
  * encode — le rendu est deterministe, donc rejouer la sequence redonne exactement
  * les memes images.
  *
- * Un lecteur NEUF par passe, et c'est la condition de ce determinisme. Le moteur
- * garde l'etat precedent pour ses fondus, et le lecteur garde le dernier bloc
- * pose : rejouer l'image 0 sur le lecteur qui vient de finir la sequence datait
- * le premier etat a l'instant 0 avec le DERNIER en etat precedent, et rendait
- * donc la pose de celui-la. Le GIF par defaut s'ouvrait sur une boule sans yeux
- * — la comete a un `eyeAlpha` nul — les yeux n'apparaissant qu'au fil des neuf
- * images du fondu. La palette, elle, avait ete comptee sur des images qui
- * n'etaient pas celles encodees.
+ * Ce determinisme repose sur le fait que le LECTEUR est idempotent : rejouer l'image 0
+ * apres une passe complete doit redonner exactement l'image 0. Ca n'a pas toujours ete le
+ * cas — le moteur garde l'etat precedent pour ses fondus, si bien que le premier etat se
+ * melangeait avec le DERNIER et que le GIF par defaut s'ouvrait sur une boule sans yeux,
+ * la comete ayant un `eyeAlpha` nul. La palette, elle, avait ete comptee sur des images
+ * qui n'etaient pas celles encodees. C'est `rendAt` qui rembobine desormais, et
+ * `capture.test.ts` le verrouille — sans quoi ce module devrait ouvrir un lecteur par
+ * passe pour s'en sortir.
  */
 export async function cycleVersGif(
   reglages: ReglagesBot,
@@ -202,42 +202,43 @@ export async function cycleVersGif(
   avance?: Avancement,
   signal?: AbortSignal
 ): Promise<Blob> {
-  // Un seul canvas pour les deux passes : il est reinitialise a chaque image.
+  // Un seul canvas et un seul lecteur pour les deux passes : le canvas est reinitialise a
+  // chaque image, et le lecteur sait rembobiner.
   const canvas = document.createElement('canvas')
   const vue = viewBoxExport(DEMI_ECRAN)
+  const lecteur = await ouvreCycle(reglages, blocs, taille, fond ?? undefined)
 
-  /** Une passe complete sur la sequence, sur un lecteur neuf. */
+  /** Une passe complete sur la sequence. */
   const passe = async (lis: (index: number, pixels: Uint8ClampedArray) => void) => {
-    const lecteur = await ouvreCycle(reglages, blocs, taille, fond ?? undefined)
-    try {
-      for (let i = 0; i < images; i++) {
-        // teste a chaque image : un cycle de trente secondes fait deux fois six cents
-        // images, et l'abandon ne doit pas attendre la fin d'une passe
-        arrete(signal)
-        const svg = await lecteur.rendre(i * pas)
-        const ctx = await dessine(svgAutonome(svg, taille, vue), taille, canvas, fond)
-        lis(i, ctx.getImageData(0, 0, taille, taille).data)
-      }
-    } finally {
-      lecteur.ferme()
+    for (let i = 0; i < images; i++) {
+      // teste a chaque image : un cycle de trente secondes fait deux fois six cents
+      // images, et l'abandon ne doit pas attendre la fin d'une passe
+      arrete(signal)
+      const svg = await lecteur.rendre(i * pas)
+      const ctx = await dessine(svgAutonome(svg, taille, vue), taille, canvas, fond)
+      lis(i, ctx.getImageData(0, 0, taille, taille).data)
     }
   }
 
-  const palette = nouvellePalette()
-  await passe((i, pixels) => {
-    recense(palette, pixels)
-    avance?.(i + 1, images * 2)
-  })
+  try {
+    const palette = nouvellePalette()
+    await passe((i, pixels) => {
+      recense(palette, pixels)
+      avance?.(i + 1, images * 2)
+    })
 
-  const morceaux: Uint8Array[] = []
-  await passe((i, pixels) => {
-    morceaux.push(indexe(palette, pixels))
-    avance?.(images + i + 1, images * 2)
-  })
+    const morceaux: Uint8Array[] = []
+    await passe((i, pixels) => {
+      morceaux.push(indexe(palette, pixels))
+      avance?.(images + i + 1, images * 2)
+    })
 
-  return new Blob([gifIndexe(palette, morceaux, taille, taille, Math.round(pas * 1000))], {
-    type: 'image/gif'
-  })
+    return new Blob([gifIndexe(palette, morceaux, taille, taille, Math.round(pas * 1000))], {
+      type: 'image/gif'
+    })
+  } finally {
+    lecteur.ferme()
+  }
 }
 
 /** Ce que le bot doit porter sur l'animation exportee. */

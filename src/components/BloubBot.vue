@@ -168,7 +168,16 @@ function rendAt(t: number) {
   if (index !== dernierBloc) {
     const b = blocs[index]!
     state.value = b.state
-    engine.setState(b.state, offsetOf(blocs, index))
+    /*
+     * Un RETOUR EN ARRIERE repart sans historique, la ou une avancee normale garde l'etat
+     * quitte pour le fondre. Sans cette distinction, rejouer l'image 0 apres une passe
+     * complete datait le premier etat a l'instant 0 avec le DERNIER en etat precedent, et
+     * rendait donc la pose de celui-la : l'export GIF, qui fait deux passes, s'ouvrait sur
+     * une boule sans yeux. Le lecteur est ainsi idempotent, et une passe peut etre rejouee
+     * autant de fois qu'on veut.
+     */
+    if (index < dernierBloc) engine.reset(b.state, offsetOf(blocs, index))
+    else engine.setState(b.state, offsetOf(blocs, index))
     dernierBloc = index
   }
   frame.value = engine.sample(t)
