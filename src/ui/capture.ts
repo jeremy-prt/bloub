@@ -14,7 +14,7 @@ import { createApp, h, nextTick, ref } from 'vue'
 import BloubBot from '@/components/BloubBot.vue'
 import type { Block } from '@/bot/cycles'
 import { gifAnime, gifIndexe, indexe, nouvellePalette, recense, svgAnime } from './anime'
-import { DEMI_ECRAN, sansCommentaires, viewBoxExport } from './export'
+import { arrete, DEMI_ECRAN, sansCommentaires, viewBoxExport } from './export'
 
 /**
  * Serialise le SVG affiche en un document autonome, recadre sur la boule.
@@ -150,7 +150,8 @@ export async function cycleVersMp4(
   images: number,
   pas: number,
   fond: string,
-  avance?: Avancement
+  avance?: Avancement,
+  signal?: AbortSignal
 ): Promise<Blob> {
   const { versMp4 } = await import('./video')
   const canvas = document.createElement('canvas')
@@ -164,7 +165,8 @@ export async function cycleVersMp4(
         const svg = await lecteur.rendre(i * pas)
         await dessine(svgAutonome(svg, taille, viewBoxExport(DEMI_ECRAN)), taille, canvas, fond)
       },
-      avance
+      avance,
+      signal
     )
   } finally {
     lecteur.ferme()
@@ -197,7 +199,8 @@ export async function cycleVersGif(
   images: number,
   pas: number,
   fond: string | null,
-  avance?: Avancement
+  avance?: Avancement,
+  signal?: AbortSignal
 ): Promise<Blob> {
   // Un seul canvas pour les deux passes : il est reinitialise a chaque image.
   const canvas = document.createElement('canvas')
@@ -208,6 +211,9 @@ export async function cycleVersGif(
     const lecteur = await ouvreCycle(reglages, blocs, taille, fond ?? undefined)
     try {
       for (let i = 0; i < images; i++) {
+        // teste a chaque image : un cycle de trente secondes fait deux fois six cents
+        // images, et l'abandon ne doit pas attendre la fin d'une passe
+        arrete(signal)
         const svg = await lecteur.rendre(i * pas)
         const ctx = await dessine(svgAutonome(svg, taille, vue), taille, canvas, fond)
         lis(i, ctx.getImageData(0, 0, taille, taille).data)

@@ -44,6 +44,7 @@ const en: typeof fr = {
     cycle_gif: 'Animated GIF',
     cycle_gif_aide: 'Plays anywhere, heavier',
     cycleProgress: 'Exporting…',
+    cycleReessayer: 'Try again',
     gifTitle: 'Download animated GIF',
     gifDetail:
       'GIF transparency is all-or-nothing: with no background, the ball\u2019s edge comes out a little hard.',

@@ -67,6 +67,7 @@ export default {
     cycle_gif: 'GIF animé',
     cycle_gif_aide: 'Lu partout, plus lourd',
     cycleProgress: 'Export en cours…',
+    cycleReessayer: 'Réessayer',
     gifTitle: 'Télécharger le GIF animé',
     gifDetail:
       "Le GIF ne gère la transparence qu'en tout ou rien : sans fond, le contour de la boule est un peu dur.",

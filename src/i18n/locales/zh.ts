@@ -49,6 +49,7 @@ const zh: typeof fr = {
     cycle_gif: 'GIF 动图',
     cycle_gif_aide: '到处可播，体积更大',
     cycleProgress: '正在导出…',
+    cycleReessayer: '重试',
     gifTitle: '下载 GIF 动图',
     gifDetail: 'GIF 的透明只有全有或全无：不加背景时，球体边缘会略显生硬。',
     gifBackground: '背景',

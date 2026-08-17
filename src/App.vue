@@ -31,6 +31,7 @@ import {
   GIF_IMAGES,
   GIF_PAS,
   BLANC,
+  Abandon,
   couleurDeFond,
   cycleImages,
   cyclePas,
@@ -534,6 +535,17 @@ const formatCycle = ref<FormatCycle>(FORMAT_CYCLE_DEFAUT)
 const fondCycle = ref<FondGif>(FOND_GIF_DEFAUT)
 /** `null` tant qu'on n'encode pas ; sinon la fraction faite, pour la barre. */
 const avancementCycle = ref<number | null>(null)
+/**
+ * Le dernier export de montage a-t-il echoue ?
+ *
+ * Un etat a lui, et non `etatExport` : celui-la pilote `ExportBar`, qui n'est rendue que
+ * dans la vue Personnaliser, alors que cette boite vit dans les Animations. L'echec
+ * partait donc dans un composant absent de l'ecran — la barre de progression disparaissait,
+ * la boite restait ouverte, et rien ne disait pourquoi.
+ */
+const erreurCycle = ref(false)
+/** De quoi abandonner l'encodage en cours. */
+let abandonCycle: AbortController | null = null
 
 /**
  * Exporte le MONTAGE, pas l'avatar : c'est le cycle courant qui est rejoue hors
@@ -542,6 +554,9 @@ const avancementCycle = ref<number | null>(null)
  */
 async function exporteCycle() {
   if (avancementCycle.value !== null) return
+  erreurCycle.value = false
+  const controle = new AbortController()
+  abandonCycle = controle
   const blocs = cycle.value.blocks
   const format = formatCycle.value
   const images = cycleImages(totalDuration(blocs), format)
@@ -555,7 +570,7 @@ async function exporteCycle() {
     const mp4 = format === 'mp4'
     // La video n'a pas d'alpha : elle impose le blanc. Le GIF, lui, garde le choix.
     const fichier = mp4
-      ? await cycleVersMp4(reglages, blocs, taille, images, pas, BLANC, suit)
+      ? await cycleVersMp4(reglages, blocs, taille, images, pas, BLANC, suit, controle.signal)
       : await cycleVersGif(
           reglages,
           blocs,
@@ -563,18 +578,34 @@ async function exporteCycle() {
           images,
           pas,
           couleurDeFond(fondCycle.value),
-          suit
+          suit,
+          controle.signal
         )
     telecharge(fichier, nomFichier(nomDeCycle(cycle.value), '', '', mp4 ? 'mp4' : 'gif'))
     dialogueCycle.value = false
-  } catch {
-    etatExport.value = 'erreur'
-    clearTimeout(confirmation)
-    confirmation = setTimeout(() => (etatExport.value = 'pret'), CONFIRMATION_MS)
+  } catch (e) {
+    // Un abandon n'est pas un echec : on ne signale pas a quelqu'un qu'il a obtenu ce
+    // qu'il demandait.
+    if (!(e instanceof Abandon)) erreurCycle.value = true
   } finally {
     avancementCycle.value = null
+    abandonCycle = null
   }
 }
+
+/** Abandon demande depuis la boite : Echap, ou son bouton. */
+function annuleCycle() {
+  abandonCycle?.abort()
+}
+
+/*
+ * L'echec appartient a la TENTATIVE, pas a la boite : la rouvrir doit la rendre neuve.
+ * Sans ce nettoyage, un echec ancien s'affichait encore a l'ouverture suivante et le
+ * bouton proposait de « reessayer » quelque chose qu'on n'avait pas encore demande.
+ */
+watch(dialogueCycle, (ouverte) => {
+  if (ouverte) erreurCycle.value = false
+})
 
 /** Duree d'affichage de la confirmation d'export. */
 const CONFIRMATION_MS = 1800
@@ -850,7 +881,9 @@ watch(
           v-model:format="formatCycle"
           v-model:fond="fondCycle"
           :avancement="avancementCycle"
+          :erreur="erreurCycle"
           @confirm="exporteCycle"
+          @annuler="annuleCycle"
         />
 
         <!-- Export de l'AVATAR : le GIF est le seul format a demander son fond,

@@ -283,3 +283,29 @@ export function nomFichier(
 export function videoPossible() {
   return typeof VideoEncoder !== 'undefined'
 }
+
+/* ------------------------------------------------------------- abandon d'export */
+
+/**
+ * Erreur d'un export abandonne par l'utilisateur.
+ *
+ * Une classe et non un booleen de retour : l'abandon doit remonter toute la pile
+ * d'encodage, dont les `finally` liberent au passage l'encodeur video et le lecteur hors
+ * ecran. L'appelant la reconnait pour ne PAS afficher d'erreur — on ne signale pas a
+ * quelqu'un qu'il a obtenu ce qu'il demandait.
+ *
+ * Elle vit ICI et pas dans `video.ts` pour la meme raison que `videoPossible` juste au
+ * dessus : `capture.ts` en a besoin en import statique, et un import statique de
+ * `video.ts` ramene mediabunny dans le chunk d'entree.
+ */
+export class Abandon extends Error {
+  constructor() {
+    super('export abandonne')
+    this.name = 'Abandon'
+  }
+}
+
+/** Jette si l'utilisateur a demande l'abandon. */
+export function arrete(signal: AbortSignal | undefined) {
+  if (signal?.aborted) throw new Abandon()
+}
