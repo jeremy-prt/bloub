@@ -48,7 +48,7 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', onOutside))
     <button
       type="button"
       class="flex max-w-56 cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1 text-left text-sm font-medium transition hover:bg-black/5"
-      aria-haspopup="menu"
+      aria-haspopup="true"
       :aria-expanded="open"
       :title="nomDeCycle(current)"
       @click="open = !open"
@@ -75,7 +75,6 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', onOutside))
     <div
       v-if="open"
       class="absolute bottom-full left-0 z-10 mb-2 w-56 rounded-xl bg-white p-1 shadow-lg ring-1 ring-black/5"
-      role="menu"
     >
       <div
         v-for="c in cycles"
@@ -86,7 +85,6 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', onOutside))
              lieu d'etre coupe, et deborde du menu avec ses deux actions -->
         <button
           type="button"
-          role="menuitem"
           class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition hover:bg-black/5"
           :title="nomDeCycle(c)"
           @click="choose(c.id)"
@@ -137,7 +135,6 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', onOutside))
 
       <button
         type="button"
-        role="menuitem"
         class="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition hover:bg-black/5"
         @click="create"
       >

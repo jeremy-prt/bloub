@@ -506,6 +506,18 @@ body,
   .barre-export {
     transition: none;
   }
+
+  /*
+   * Les boites modales manquaient a cette liste : `.dialogue` anime un
+   * `translateY(8px) scale(0.98)`, donc elles glissaient encore sous « mouvement
+   * reduit » alors que tout le reste etait neutralise. `.rail` et `.wordmark`, eux, ne
+   * jouent que sur l'opacite et n'ont rien a faire ici.
+   */
+  .dialogue,
+  .dialogue::backdrop {
+    transition: none;
+    animation: none;
+  }
 }
 
 body {

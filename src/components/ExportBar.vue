@@ -105,7 +105,7 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', onOutside))
         class="flex cursor-pointer items-center px-2.5 transition hover:bg-white/10 disabled:cursor-default"
         :disabled="occupe"
         :aria-label="t('export.more')"
-        aria-haspopup="menu"
+        aria-haspopup="true"
         :aria-expanded="open"
         @click="open = !open"
       >
@@ -132,14 +132,12 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', onOutside))
 
     <div
       v-if="open"
-      role="menu"
       class="absolute right-0 bottom-full z-10 mb-2 w-60 rounded-xl border border-[var(--line)] bg-[var(--paper)] p-1 shadow-lg"
     >
       <button
         v-for="action in actions"
         :key="action.id"
         type="button"
-        role="menuitem"
         class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition hover:bg-black/5"
         :class="action.id === 'copie' && 'mt-1 border-t border-[var(--line)] pt-2.5'"
         @click="lance(action.id)"

@@ -120,3 +120,15 @@ Hence `ecritParNous` in `App.vue`: the fragment we just wrote is remembered and 
 `hashchange` is ignored. It is **consumed** on that first read rather than kept —
 one write fires at most one event, and a browser Back to that same state later is a
 real navigation that must still move the playhead.
+
+## Every editing gesture has a keyboard route
+
+Drag-and-drop had no equivalent, so a block could be added, removed and resized — the
+resize handle already took arrow keys — but never **reordered**, and precise seeking existed
+only on the ruler, pointer-only. It was the one gesture in the editor that was unreachable.
+
+`Alt` + left/right moves the focused card; bare arrows move the playhead by `STEP`. `Alt`
+rather than bare arrows for the move, because a card is a button inside a list and arrows
+there are expected to navigate. **The focus follows the card being moved** — otherwise the
+next press pushes a different one — which means waiting a tick, since the list is rebuilt
+and the destination button does not exist yet.

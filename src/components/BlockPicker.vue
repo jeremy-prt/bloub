@@ -22,6 +22,16 @@ const panel = ref<HTMLElement | null>(null)
 const position = ref<Record<string, string>>({})
 
 /**
+ * La palette est-elle ouverte ? Pour `aria-expanded`, que le declencheur doit porter comme
+ * ceux de la barre d'export et du menu de cycles.
+ *
+ * Suivi par l'evenement `toggle` du popover et non par notre propre `toggle()` : la
+ * fermeture LEGERE — clic a cote, Echap — est faite par le navigateur, donc un drapeau que
+ * nous tiendrions nous-memes resterait bloque sur « ouvert ».
+ */
+const ouvert = ref(false)
+
+/**
  * Ouvre la palette au-dessus du « + ». Elle vit dans la couche superieure du
  * navigateur, donc sa position se calcule ici, en coordonnees d'ecran, et se
  * borne pour ne pas sortir par la droite quand le bouton est en bout de piste.
@@ -63,7 +73,8 @@ function pick(state: StateId) {
     type="button"
     class="flex h-full w-full cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-[var(--line)] text-lg leading-none text-[var(--muted)] transition hover:border-[var(--muted)] hover:text-[var(--ink)]"
     :aria-label="t('timeline.addAnimation')"
-    aria-haspopup="menu"
+    aria-haspopup="true"
+    :aria-expanded="ouvert"
     @click="toggle"
   >
     +
@@ -79,7 +90,7 @@ function pick(state: StateId) {
   <div
     ref="panel"
     popover
-    role="menu"
+    @toggle="ouvert = ($event as ToggleEvent).newState === 'open'"
     class="m-0 w-72 rounded-xl bg-white p-2 shadow-lg ring-1 ring-black/5"
     :style="position"
   >

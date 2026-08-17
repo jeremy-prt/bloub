@@ -102,6 +102,15 @@ Details and the reasoning behind each are in [docs/](docs/):
   to the initial bundle, more than the 34 kB that got `vue-i18n` rejected in favour of the
   in-house layer. Behind `await import(...)` it costs 0.7 kB and only arrives when someone
   exports a video. Turning it into a top-level import would silently undo that.
+- **Don't declare `role="menu"` without the keyboard contract.** Those roles *promise*
+  arrow-key navigation and focus moved into the menu on open, and they stop exposing the
+  children as ordinary buttons. Three popups declared them and implemented none of it, so
+  the Tab order didn't match what was announced — they are plain button lists now, with
+  `aria-haspopup="true"` and `aria-expanded`. `Settings.vue` shows the other route: a real
+  `radiogroup` with a moving `tabindex`. Pick one, never the label alone.
+- **`prefers-reduced-motion` is followed at runtime, not read once**, and it draws a line:
+  it cancels box transitions and the settings view's `swirl` entry, which are decoration;
+  it does **not** cancel the breathing, gaze drift and blinking, which are what the bot IS.
 - **A UI element that must appear once uses a `transition`, not an `animation`.** An
   animation replays on every mount: every view change, every reload. A transition
   doesn't run on an element's first computed style, so it stays quiet there. That's

@@ -96,6 +96,21 @@ const gallery = ref(initial.gallery)
  * Le repli sur `navigate` sert aux navigateurs qui ne renseignent pas l'entree :
  * dans le doute on joue, plutot que de ne jamais rien montrer.
  */
+/**
+ * « Mouvement reduit » demande par le systeme, SUIVI et pas lu une seule fois.
+ *
+ * Le reglage change en cours de session — c'est meme l'usage : on l'active quand quelque
+ * chose gene. Un `matches` lu au `setup` ignorait ce changement jusqu'au rechargement.
+ *
+ * Ce qu'il coupe est de la DECORATION : les transitions de boites et le tourbillon
+ * d'entree des reglages, choisi et non releve sur la video. Ce qu'il ne coupe pas est du
+ * CONTENU : la respiration, la derive du regard et les clignements sont ce que le bot EST,
+ * les retirer laisserait une image morte plutot qu'un mouvement apaise.
+ */
+const calmeQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+const calme = ref(calmeQuery.matches)
+calmeQuery.addEventListener('change', (e) => (calme.value = e.matches))
+
 // `getEntriesByType` est type sur le `PerformanceEntry` generique, qui n'a pas de
 // `type` : c'est l'entree de navigation qui le porte, d'ou l'annotation.
 const [nav] = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[]
@@ -110,7 +125,7 @@ const intro = ref(
       named: initial.named,
       gallery: initial.gallery,
       rechargement: navigation !== 'navigate',
-      calme: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      calme: calme.value
     })
 )
 
@@ -338,11 +353,17 @@ const REST = [makeBlock('idle')]
  * meme pose : la reprise ne se voit pas.
  */
 const ENTREE = [makeBlock('swirl'), makeBlock('idle')]
+/**
+ * Sous « mouvement reduit », l'entree va droit au repos : le tourbillon est une transition
+ * d'interface, choisie et non relevee, donc de la decoration au sens de ce reglage.
+ */
+const ENTREE_CALME = [makeBlock('idle')]
 
 const played = computed(() => {
   if (intro.value) return INTRO
   if (view.value === 'animations') return cycle.value.blocks
-  return view.value === 'reglages' ? ENTREE : REST
+  if (view.value !== 'reglages') return REST
+  return calme.value ? ENTREE_CALME : ENTREE
 })
 
 watch(view, (now, before) => {

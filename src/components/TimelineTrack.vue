@@ -262,6 +262,48 @@ function onResizeKey(index: number, delta: number) {
   setDuration(index, props.blocks[index]!.duration + delta)
 }
 
+/* -------------------------------------------------------------- au clavier */
+
+/**
+ * Reordonner et pointer AU CLAVIER.
+ *
+ * Le glisser-deposer n'avait aucun equivalent : on pouvait ajouter, supprimer et etirer un
+ * bloc — la poignee gere deja les fleches — mais jamais le REORDONNER, et le pointage
+ * precis n'existait qu'au pointeur, sur la regle. C'etait le seul geste de l'editeur
+ * inaccessible.
+ *
+ * `Alt` + fleches deplace la carte, les fleches nues promenent la tete de lecture de `STEP`.
+ * Alt et pas les fleches nues pour le deplacement : une carte est un bouton dans une liste,
+ * et les fleches y servent d'abord a se deplacer.
+ *
+ * Le focus SUIT la carte deplacee, sinon on se retrouve a en pousser une autre au coup
+ * suivant. Il faut attendre le rendu : la liste est recomposee, donc le bouton d'arrivee
+ * n'existe pas encore.
+ *
+ * La carte porte `aria-keyshortcuts` : un raccourci que rien n'annonce n'est pas une
+ * affordance. C'est l'attribut fait pour ca, et il evite d'allonger l'etiquette, qui est
+ * relue a chaque carte de la piste.
+ */
+async function onCardKey(index: number, e: KeyboardEvent) {
+  const sens = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0
+  if (!sens) return
+  e.preventDefault()
+
+  if (!e.altKey) {
+    // pointage : la tete de lecture avance d'un pas, dans tout le montage
+    emit('seek', Math.max(0, Math.min(total.value - 0.001, at.value + sens * STEP)))
+    return
+  }
+
+  const cible = index + sens
+  if (cible < 0 || cible >= props.blocks.length) return
+  emit('update:blocks', moveBlock(props.blocks, index, cible))
+  block.value = cible
+  await nextTick()
+  const liste = track.value?.querySelectorAll<HTMLButtonElement>('[data-carte]')
+  liste?.[cible]?.focus()
+}
+
 /* ----------------------------------------------------------------- scrub */
 
 function scrubTo(e: PointerEvent) {
@@ -349,8 +391,12 @@ function onRulerMove(e: PointerEvent) {
               @pointermove="onBlockMove"
               @pointerup="onBlockUp(i)"
               @pointercancel="drag = null"
+              data-carte
+              aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight ArrowLeft ArrowRight"
               @keydown.enter.prevent="block = i"
               @keydown.space.prevent="block = i"
+              @keydown.left="onCardKey(i, $event)"
+              @keydown.right="onCardKey(i, $event)"
             >
               <!-- la miniature EST l'identite de la carte, comme la vignette
                    d'une page : le nom n'apprendrait rien de plus, il ne reste
