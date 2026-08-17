@@ -1,5 +1,6 @@
 import { arcRender, type ArcRender, type DotRender } from './decor'
 import { blendExpression, type BotExpression } from './expressions'
+import { decalageDesYeux } from './eyefit'
 import { blinkScale, eyePoses, liveliness } from './face'
 import { clamp, easings, lerp, r2 } from './math'
 import {
@@ -277,6 +278,56 @@ export class BotEngine {
     return pose
   }
 
+  /**
+   * Decalage des yeux a l'instant `now` pour un etat donne, en unites de rayon de boule.
+   *
+   * Il est LU dans une table et interpole, jamais recalcule : `eyefit.ts` explique
+   * pourquoi cette distinction est tout le correctif. Ici il ne reste qu'a l'interpoler
+   * sur l'axe de la forme, avec exactement la courbe et la duree du morph de silhouette
+   * — c'est la meme cause, donc ce doit etre le meme mouvement.
+   *
+   * On interroge la table sur les BORNES du morph (`shapePrev` et `shape`) et non sur le
+   * profil que rend `shapeAtTime` : celui-la est un tableau neuf alloue a chaque image,
+   * donc sans identite, et il n'existe dans aucune table.
+   */
+  private decalageAtTime(now: number, state: StateId): { x: number; y: number } {
+    /**
+     * Un axe de morph : on lit la table sur ses deux BORNES et on interpole avec sa
+     * courbe. Jamais sur la valeur interpolee — celle-la n'a pas d'identite et n'existe
+     * dans aucune table, et c'est en la lui donnant a manger que les versions
+     * precedentes tremblaient.
+     */
+    const surAxe = (
+      debut: number,
+      duree: number,
+      a: { x: number; y: number },
+      b: { x: number; y: number }
+    ) => {
+      if (a === b) return b
+      const k = (now - debut) / duree
+      if (k >= 1) return b
+      const t = easings.easeOutQuint(clamp(k))
+      return { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) }
+    }
+
+    // axe de l'expression, pour chacune des deux formes en presence
+    const parForme = (radii: number[] | null) =>
+      surAxe(
+        this.exprAt,
+        BotEngine.SHAPE_MORPH,
+        decalageDesYeux(radii, state, this.exprPrev?.id ?? null),
+        decalageDesYeux(radii, state, this.expr?.id ?? null)
+      )
+
+    // puis axe de la forme
+    return surAxe(
+      this.shapeAt,
+      BotEngine.SHAPE_MORPH,
+      parForme(this.shapePrev),
+      parForme(this.shape)
+    )
+  }
+
   get state(): StateId {
     return this.cur
   }
@@ -297,6 +348,7 @@ export class BotEngine {
     const shape = this.shapeAtTime(now)
     const expr = this.exprAtTime(now)
     let pose = this.posed(def, Math.max(0, now - this.tCur), shape, expr)
+    let decalage = this.decalageAtTime(now, this.cur)
 
     // --- transition -------------------------------------------------------
     const since = now - this.tCur
@@ -312,7 +364,14 @@ export class BotEngine {
       // Le ratio est borne : relire une date ANTERIEURE au changement d'etat
       // donnerait un ratio negatif, que l'ease-out extrapole — la silhouette
       // part alors trente fois trop loin.
-      pose = blendPose(prevPose, pose, easings.easeOutQuint(clamp(since / def.morph)))
+      const ratio = easings.easeOutQuint(clamp(since / def.morph))
+      pose = blendPose(prevPose, pose, ratio)
+      // le decalage des yeux suit la MEME courbe que la silhouette qui le motive
+      const avant = this.decalageAtTime(now, this.prev)
+      decalage = {
+        x: lerp(avant.x, decalage.x, ratio),
+        y: lerp(avant.y, decalage.y, ratio)
+      }
     }
 
     // --- vie au repos -----------------------------------------------------
@@ -379,7 +438,7 @@ export class BotEngine {
         const k = blinkScale(Math.min(lid, cfg.open))
         eyes.push({
           d: capsulePath(cfg.w * R, cfg.h * R),
-          matrix: `matrix(${r2(ax)},${r2(ay * k)},${r2(cx2)},${r2(cy2 * k)},${r2(e.x * fit + offX * R)},${r2(e.y * fit + offY * R)})`,
+          matrix: `matrix(${r2(ax)},${r2(ay * k)},${r2(cx2)},${r2(cy2 * k)},${r2(e.x * fit + (offX + decalage.x) * R)},${r2(e.y * fit + (offY + decalage.y) * R)})`,
           alpha: pose.eyeAlpha * clamp(e.depth / 0.12)
         })
       }

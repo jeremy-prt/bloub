@@ -66,6 +66,92 @@ silhouette and the mask cuts them. Hence `radiusAtAngle`, defined in `shape.ts`,
 applied by `engine.ts` to the eyes and to the notification pastille. Any new
 element anchored to the outline needs the same treatment.
 
+That pro-rata places the eye's **centre** correctly, and that is not enough: the eye
+has a size, and the margin left in front of the edge gets multiplied by the same
+pro-rata. A shape that is narrow in the eye's direction therefore pushed it against
+the edge until the mask opened it outwards — the capsule, the triangle, the cloud and
+the teardrop all did, 55 shape × expression × state combinations out of 680, up to
+11.6 units on a ball of radius 100.
+
+So a **common offset** is added to both eyes, only when a customiser shape has replaced
+the body. It is a translation and nothing else, hence an isometry: spacing, sizes and
+tilts are all preserved to the pixel. The face simply sits a little lower on a body that
+has no room up there — the gesture you would make by hand.
+
+### The offset is a table, not a solver
+
+This is the whole fix, far more than the geometry it contains. `src/bot/eyefit.ts` solves
+the problem **once, at import**, and yields one entry per (shape, base-body state,
+expression).
+
+Seven versions solved it inside the render loop instead, and every one of them produced a
+visible motion artefact, because everything the solver reads moves at sixty frames per
+second: the resting gaze drift, the pointer, the expression mid-morph, which edge is
+nearest, which eye is tightest. The names for what went wrong are established ones — an
+**active-set change** when the nearest edge switches (26 units of backtracking), a
+**non-smooth objective** because `min` is C0 but not C1, and **chattering** from a
+per-frame feedback loop. The defect was in none of their geometries; it was in solving per
+frame.
+
+The rest of the engine does not work that way: poses are **declared** and it only
+interpolates them along known curves. A tabulated offset fits that mould, and the engine
+reads the table on the **boundaries** of each morph — `shapePrev`/`shape`,
+`exprPrev`/`expr`, `prev`/`cur` — then interpolates with that morph's own `easeOutQuint`.
+Never on the interpolated value: during a shape morph `shapeAtTime` allocates a fresh array
+with no identity, and `blendExpression` already carries the target's id, so neither exists
+in any table. Feeding those to the solver is exactly what made the eyes tremble.
+
+The same approach has a name in character rigging: **pose space deformation** (Lewis,
+Cordner & Fong, SIGGRAPH 2000) — a corrective authored per pose, resolved at setup and
+merely looked up at runtime.
+
+A pleasant corollary: the solver no longer has any continuity requirement, since it doesn't
+run during the animation. It can therefore iterate to convergence and take the worst case
+over everything that varies — the gaze drift included, whose analytic bounds it covers.
+A per-frame version could afford neither.
+
+The table is a module constant built from pure data, the same nature as the pre-drawn blink
+schedule in `face.ts`: deterministic and stateless, so `engine.sample(t)` stays a pure
+function of time.
+
+### What not to try again
+
+Each of these was written and measured, and each broke something visible:
+
+- **Bounding per eye.** The two eyes don't aim in the same direction, so they don't retreat
+  by the same amount: the pair spreads, and a distorted face reads far worse than the
+  clipping being fixed.
+- **Retreating radially towards the centre.** That travels a long diagonal to gain a little
+  vertical room, so aiming for the circle's margin dragged both eyes to the middle where
+  they merged into one blob — 283 combinations out of 680.
+- **Scaling the face.** Scaling position *and* eye size keeps every ratio and is stable,
+  but the eyes get visibly smaller on a flat body and a change of expression then animates
+  that resize. `skins.test.ts` locks the eye's `d` against it.
+- **Taking the worst eye.** `Math.min` over the two is a discrete choice: the binding eye
+  changes mid-morph and the push direction flips with it, 11.6 units on the triangle whose
+  two slanted edges compete for the pair.
+- **One entry per shape, worst case over expressions.** Tempting, since a constant offset
+  cannot move when the expression changes — but on a capsule `neutre` has its eyes high and
+  needs to go down while `effraye` has them low and needs to go up. No single translation
+  satisfies both, measured: 4 combinations still overflowing.
+- **Giving up when nothing fits.** `wide` has 87-unit gélules and `notify` 50-unit ones; on
+  a triangle or a teardrop they overflow whatever you do, and "no worse than the circle" is
+  then satisfied degenerately. The rule is to aim for the least bad, never to leave a real
+  overflow unimproved.
+
+The margin aimed for is the one the **original profile** gave, not clearance: on the circle
+the outer eye already grazes the edge and that is deliberate, it is what gives the volume.
+Aiming for clearance left the eye exactly tangent, which shows. On the circle both outlines
+are the same, so the offset is `0, 0` by construction and the reference does not move —
+which is also what protects `public/favicon.svg`.
+
+`src/bot/skins.test.ts` locks all of it. It measures back-and-forths frame by frame rather
+than speed — a morph moves the eyes fast anyway, trembling is going *and coming back* — it
+separates what would tremble permanently (resting drift, shape morph: no more than the
+circle) from a change of expression, and it sweeps **time as well as combinations**: one
+instant per combination is what let `capsule` + `frightened` through, since it was the
+resting drift that carried the eye over the edge.
+
 ## States declare `ArcSpec`, the engine rasterises
 
 Geometry in `ArcSpec` is expressed in ball-radius units; only the engine knows the

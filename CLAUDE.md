@@ -52,6 +52,18 @@ Details and the reasoning behind each are in [docs/](docs/):
 - **Anything sitting "on" the body must follow its real radius**: `radiusAtAngle`
   (defined in `shape.ts`, applied by `engine.ts`) for the eyes and the notification
   pastille. A new element anchored to the outline needs the same treatment.
+- **That pro-rata places the eye's centre, not the eye.** Since the margin in front of the
+  edge is multiplied by the same factor, a narrow shape pushed the eye out through the mask.
+  `src/bot/eyefit.ts` adds a **common offset to both eyes** — a translation, so an isometry —
+  only on a customiser shape. **It is a table built at import, not a solver in the render
+  loop**, and that distinction *is* the fix: seven per-frame versions all trembled, because
+  everything they read (gaze drift, pointer, expression mid-morph, which edge is nearest)
+  moves every frame. The engine reads the table on the **boundaries** of each morph and
+  interpolates with that morph's own curve — never on the interpolated value, which has no
+  identity and exists in no table. `docs/architecture.md` lists the six variants that were
+  measured and rejected; don't re-try them. `skins.test.ts` locks the lot, and it sweeps
+  **time as well as combinations** — one instant per combination is what let
+  `capsule` + `effraye` through.
 - **States declare `ArcSpec`; only the engine rasterises.** Don't call `arcRender`
   from `states.ts`.
 - **Transitions are exponential ease-outs and the body never overshoots.** The one
