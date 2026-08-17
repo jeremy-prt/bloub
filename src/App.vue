@@ -43,7 +43,7 @@ import {
 } from '@/ui/export'
 import { HUMEURS } from '@/ui/gaze'
 import { INTRO, INTRO_GAZE, POSE_AT, introDue } from '@/ui/intro'
-import { cle } from '@/ui/stockage'
+import { ecris, lis, type NomStocke } from '@/ui/stockage'
 import {
   blockAt,
   blocksWith,
@@ -121,7 +121,7 @@ const intro = ref(
  * remplit la liste, ensuite les montages de l'utilisateur font foi — y compris
  * ses modifications de celui-la.
  */
-const restored = parseCycles(localStorage.getItem(cle('cycles')))
+const restored = parseCycles(lis('cycles'))
 const cycles = ref<Cycle[]>(restored.length ? restored : [defaultCycle()])
 
 /**
@@ -143,13 +143,13 @@ function locate(id: StateId) {
  * de l'utilisateur, pas un reglage de session. On valide au chargement, un id
  * inconnu retombe sur le defaut.
  */
-function stored(key: string, fallback: string, exists: (v: string) => boolean) {
-  const v = localStorage.getItem(key)
+function stored(nom: NomStocke, fallback: string, exists: (v: string) => boolean) {
+  const v = lis(nom)
   return v && exists(v) ? v : fallback
 }
 
 const activeId = ref(
-  stored(cle('cycle'), cycles.value[0]!.id, (v) => cycles.value.some((c) => c.id === v))
+  stored('cycle', cycles.value[0]!.id, (v) => cycles.value.some((c) => c.id === v))
 )
 const block = ref(0)
 const elapsed = ref(0)
@@ -184,13 +184,25 @@ const state = ref<StateId>(
  * pendant un glisser bloquerait le rendu pour rien.
  */
 let pending: ReturnType<typeof setTimeout>
-watch(cycles, (list) => {
+function enregistreCycles() {
   clearTimeout(pending)
-  pending = setTimeout(() => {
-    localStorage.setItem(cle('cycles'), JSON.stringify(list))
-  }, 250)
+  ecris('cycles', JSON.stringify(cycles.value))
+}
+watch(cycles, () => {
+  clearTimeout(pending)
+  pending = setTimeout(enregistreCycles, 250)
 })
-watch(activeId, (v) => localStorage.setItem(cle('cycle'), v))
+watch(activeId, (v) => ecris('cycle', v))
+
+/*
+ * Le differe se vide a la fermeture, sinon la derniere modification est perdue quand
+ * l'onglet part dans les 250 ms — etirer une carte puis fermer, et le geste n'a pas eu
+ * lieu.
+ *
+ * `pagehide` et pas `beforeunload` : c'est le seul des deux qui se declenche aussi quand
+ * la page passe en cache de navigation sur mobile, ou l'onglet n'est jamais « decharge ».
+ */
+window.addEventListener('pagehide', enregistreCycles)
 
 /* -------------------------------------------------------------------- vues */
 
@@ -405,15 +417,15 @@ const droite = computed(() => !nue.value && view.value !== 'reglages')
 
 /* ------------------------------------------------------------------- skins */
 
-const shape = ref(stored(cle('forme'), DEFAULT_SHAPE, (v) => SHAPE_BY_ID.has(v)))
-const color = ref(stored(cle('couleur'), DEFAULT_COLOR, (v) => COLOR_BY_ID.has(v)))
+const shape = ref(stored('forme', DEFAULT_SHAPE, (v) => SHAPE_BY_ID.has(v)))
+const color = ref(stored('couleur', DEFAULT_COLOR, (v) => COLOR_BY_ID.has(v)))
 const expression = ref(
-  stored(cle('expression'), DEFAULT_EXPRESSION, (v) => EXPRESSION_BY_ID.has(v))
+  stored('expression', DEFAULT_EXPRESSION, (v) => EXPRESSION_BY_ID.has(v))
 )
 
-watch(shape, (v) => localStorage.setItem(cle('forme'), v))
-watch(color, (v) => localStorage.setItem(cle('couleur'), v))
-watch(expression, (v) => localStorage.setItem(cle('expression'), v))
+watch(shape, (v) => ecris('forme', v))
+watch(color, (v) => ecris('couleur', v))
+watch(expression, (v) => ecris('expression', v))
 
 /**
  * Nom du produit, en capitales pour le grand mot du pied de page. PAS traduit —

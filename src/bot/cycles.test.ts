@@ -1,17 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import {
+  MAX_BLOCK,
+  MAX_BLOCS,
+  MAX_CYCLES,
+  MIN_BLOCK,
   blockAt,
+  blocksWith,
   clampDuration,
   defaultCycle,
-  MAX_BLOCK,
-  MIN_BLOCK,
+  makeBlock,
   minDurationOf,
   moveBlock,
   nextCycleId,
   parseCycles,
   totalDuration,
-  uniqueName,
-  type Cycle
+  type Cycle,
+  uniqueName
 } from './cycles'
 import { SEQUENCE, STATE_BY_ID } from './states'
 
@@ -154,5 +158,52 @@ describe('relecture du stockage', () => {
     const cycle = parseCycles(raw)[0]!
     expect(Object.keys(cycle).sort()).toEqual(['blocks', 'id', 'name'])
     expect(Object.keys(cycle.blocks[0]!).sort()).toEqual(['duration', 'state'])
+  })
+
+  /*
+   * Le stockage est modifiable et tient quelques megaoctets, alors que rien en aval n'est
+   * dimensionne pour ca. Un seul cycle de 150 000 blocs — environ 4 Mo de JSON, donc dans
+   * le budget — donnait 1 500 000 s de duree, autant de graduations a allouer et une piste
+   * de 29 700 000 px : l'onglet figeait en entrant dans la vue Animations.
+   */
+  it('borne la taille d un montage relu', () => {
+    const blocs = Array.from({ length: 5000 }, () => ({ state: 'idle', duration: 10 }))
+    const raw = JSON.stringify([{ id: 'c1', name: 'A', blocks: blocs }])
+    expect(parseCycles(raw)[0]!.blocks).toHaveLength(MAX_BLOCS)
+  })
+
+  it('borne aussi l ajout depuis l editeur, pas seulement la relecture', () => {
+    let blocs = Array.from({ length: MAX_BLOCS }, () => makeBlock('idle'))
+    expect(blocksWith(blocs, 'egg')).toHaveLength(MAX_BLOCS)
+    // et il reste possible d'ajouter juste en dessous de la borne
+    blocs = blocs.slice(0, MAX_BLOCS - 1)
+    expect(blocksWith(blocs, 'egg')).toHaveLength(MAX_BLOCS)
+  })
+
+  it('borne le nombre de montages relus', () => {
+    const raw = JSON.stringify(
+      Array.from({ length: 500 }, (_, i) => ({
+        id: `c${i}`,
+        name: `A${i}`,
+        blocks: [{ state: 'idle', duration: 2 }]
+      }))
+    )
+    expect(parseCycles(raw)).toHaveLength(MAX_CYCLES)
+  })
+
+  /*
+   * `swirl` est la transition d'entree des reglages, deliberement hors de `SEQUENCE` : un
+   * test la garde hors de la palette et de la planche. Un montage utilisateur ne se
+   * construit qu'a partir de la palette, donc elle ne peut arriver ici que par un stockage
+   * bricole a la main — et on l'y refuse comme partout ailleurs.
+   */
+  it('refuse un etat hors catalogue, `swirl` compris', () => {
+    const raw = '[{"id":"c1","name":"A","blocks":[{"state":"swirl","duration":2},' +
+      '{"state":"idle","duration":2}]}]'
+    expect(parseCycles(raw)[0]!.blocks.map((b) => b.state)).toEqual(['idle'])
+    // un montage qui n'en contiendrait QUE devient vide, donc tombe
+    expect(parseCycles('[{"id":"c1","name":"A","blocks":[{"state":"swirl","duration":2}]}]')).toEqual(
+      []
+    )
   })
 })

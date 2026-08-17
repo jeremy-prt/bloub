@@ -55,9 +55,23 @@ export function ticksFor(total: number, scale: number): Array<{ t: number; major
   const major = STEPS.find((s) => s * scale >= TICK_SPACING) ?? STEPS[STEPS.length - 1]!
   const step = (major / 5) * scale >= 7 ? major / 5 : major
   const out: Array<{ t: number; major: boolean }> = []
-  for (let i = 0; i * step <= total + 1e-6; i++) {
+  for (let i = 0; i * step <= total + 1e-6 && out.length < MAX_TICKS; i++) {
     const t = i * step
     out.push({ t, major: Math.abs(t / major - Math.round(t / major)) < 1e-6 })
   }
   return out
 }
+
+/**
+ * Plafond du nombre de graduations. Garde-fou et non reglage.
+ *
+ * `parseCycles` borne deja la taille d'un montage relu, mais cette fonction ne doit pas
+ * dependre de ce garde-la pour rester bornee : elle rend un objet par graduation et le
+ * composant un `<span>` par objet, donc une duree aberrante — un montage bricole a la
+ * main, un zoom extreme — se paie en centaines de milliers de noeuds et l'onglet fige.
+ *
+ * Deux mille couvre trente minutes de montage au zoom le plus fin, soit bien plus que ce
+ * que `MAX_BLOCS` autorise a relire. La regle est de toute facon plus large que l'ecran :
+ * la piste defile, elle n'affiche jamais tout.
+ */
+const MAX_TICKS = 2000

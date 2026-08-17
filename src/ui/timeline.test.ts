@@ -55,6 +55,21 @@ describe('graduation de la regle', () => {
   it('ne rend pas la piste vide sur un montage minuscule', () => {
     expect(ticksFor(0.6, BASE_SCALE).length).toBeGreaterThan(0)
   })
+
+  /*
+   * Garde-fou independant de celui de `parseCycles` : cette fonction rend un objet par
+   * graduation et le composant un `<span>` par objet, donc une duree aberrante se paie en
+   * centaines de milliers de noeuds. Elle ne doit pas dependre d'un garde situe ailleurs.
+   */
+  it('ne rend jamais un nombre aberrant de graduations', () => {
+    for (const total of [1e5, 1e7, 1.5e6]) {
+      const ticks = ticksFor(total, BASE_SCALE)
+      expect(ticks.length, `total=${total}`).toBeLessThanOrEqual(2000)
+      // et elles restent croissantes et bien formees
+      expect(ticks[0]!.t).toBe(0)
+      expect(ticks.every((x, i) => i === 0 || x.t > ticks[i - 1]!.t)).toBe(true)
+    }
+  })
 })
 
 describe('bornes de la loupe', () => {
