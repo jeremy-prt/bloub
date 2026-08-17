@@ -108,6 +108,15 @@ Details and the reasoning behind each are in [docs/](docs/):
   the Tab order didn't match what was announced — they are plain button lists now, with
   `aria-haspopup="true"` and `aria-expanded`. `Settings.vue` shows the other route: a real
   `radiogroup` with a moving `tabindex`. Pick one, never the label alone.
+- **64rem is the only breakpoint, and it separates two different layouts, not two sizes.**
+  Above it the scene is the three-column grid and the page never scrolls (`#app { overflow:
+  clip }`): things can float in the margins and be anchored to the window. Below it
+  everything stacks and the page scrolls for real, which breaks exactly those three
+  assumptions — so the rail becomes a top bar, the montage bar gets an opaque background
+  (without one, content scrolls visibly through it), and the wordmark returns to the flow.
+  Anything new that is `fixed`, or anchored to the bottom of `#app`, needs its own answer
+  below 64rem. `--timeline` also changes there (236 → 200 px); the fine positioning that
+  reads it lives inside the `>= 64rem` query and never sees the other value.
 - **`prefers-reduced-motion` is followed at runtime, not read once**, and it draws a line:
   it cancels box transitions and the settings view's `swirl` entry, which are decoration;
   it does **not** cancel the breathing, gaze drift and blinking, which are what the bot IS.

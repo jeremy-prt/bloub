@@ -5,6 +5,28 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The Settings and Animations views were unusable below 64rem.** Everything stacks
+  there, but three pieces were still placed as if the three-column desktop grid were
+  around them. Measured at 375 × 812: the navigation rail floated over the middle of the
+  content (over the animations panel's heading, over the avatar in Settings); the
+  montage bar had no background, so the palette scrolled through the track and its
+  labels landed on top of the zoom slider; and the wordmark sat 812 px down the
+  *document* rather than at the foot of the page, covering the credits and then drifting
+  into mid-screen once scrolled.
+- **The montage bar took 29 % of a phone screen** and its toolbar overflowed a 327 px
+  row. It is 200 px below 64rem — still the ruler plus a card at full thumbnail size —
+  the two counters flanking the play button give way to the identical pair already in
+  the toolbar, and the export button keeps its icon, its label staying as the accessible
+  name.
+
+### Changed
+
+- Below 64rem the navigation rail is a horizontal bar at the top rather than a floating
+  column on the left, and the wordmark sits in the flow at the foot of the page,
+  centred and cropped at the baseline. Above 64rem nothing moves.
+
 ## [0.1.1] — 2026-08-17
 
 First batch of post-launch fixes. Every entry was reproduced and measured before being

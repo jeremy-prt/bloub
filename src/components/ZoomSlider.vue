@@ -26,7 +26,7 @@ function onInput(e: Event) {
     <span class="h-1 w-1 shrink-0 rounded-full bg-[var(--muted)]" aria-hidden="true" />
     <input
       type="range"
-      class="h-1 w-28 cursor-pointer accent-[var(--ink)]"
+      class="h-1 w-28 cursor-pointer accent-[var(--ink)] max-sm:w-20"
       :min="props.min"
       :max="props.max"
       step="0.01"

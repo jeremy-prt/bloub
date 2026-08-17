@@ -145,14 +145,29 @@ function onRemove() {
     colonne de gauche a une largeur NULLE en dehors des reglages, mais la grille
     garde son `column-gap`, donc la colonne de l'avatar commence a 72 px et non a
     32. C'est la symetrie de 24,5rem = panneau (20) + gouttiere (2,5) + marge (2).
+
+    Le FOND n'apparait que sous 64rem, et ce n'est pas un choix d'habillage.
+    Au-dessus, la page ne defile pas (`#app { overflow: clip }`) et la scene
+    reserve exactement cette bande : rien ne passe jamais derriere, donc une barre
+    transparente se lit comme une partie de la page. En dessous la page defile
+    pour de vrai, et la palette d'animations remontait mot pour mot au travers de
+    la piste — le curseur de zoom et les etiquettes des vignettes se superposaient.
+    Le filet du haut dit ou la page s'arrete de defiler.
   -->
   <div
-    class="fixed inset-x-0 bottom-0 z-30 h-[var(--timeline)] px-6 pt-3 pb-5 lg:right-[24.5rem] lg:left-[4.5rem]"
+    class="fixed inset-x-0 bottom-0 z-30 h-[var(--timeline)] px-6 pt-3 pb-5 max-lg:border-t max-lg:border-[var(--line)] max-lg:bg-[var(--paper)] max-lg:px-5 lg:right-[24.5rem] lg:left-[4.5rem]"
   >
     <!-- lecture : flottante au-dessus de la piste, au centre, le temps ecoule a
-         gauche et la duree totale a droite -->
+         gauche et la duree totale a droite.
+
+         Les deux compteurs disparaissent sous 64rem : ils depassent du haut de la
+         barre, donc du fond qui la rend lisible, et ils tombaient sur la palette
+         qui defile derriere. Le bouton, lui, reste — un disque plein se lit
+         par-dessus n'importe quoi, et il est la commande principale de la vue. La
+         meme paire de valeurs est de toute facon affichee dans la barre d'outils,
+         en bas a droite. -->
     <div class="absolute -top-5 left-1/2 flex -translate-x-1/2 items-center gap-3">
-      <span class="text-sm font-medium tabular-nums">{{ mmss(at) }}</span>
+      <span class="text-sm font-medium tabular-nums max-lg:hidden">{{ mmss(at) }}</span>
       <button
         type="button"
         class="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-[var(--ink)] text-[var(--paper)] shadow-sm transition hover:scale-105 active:scale-95"
@@ -182,7 +197,7 @@ function onRemove() {
           </g>
         </svg>
       </button>
-      <span class="text-sm tabular-nums text-[var(--muted)]">{{ mmss(total) }}</span>
+      <span class="text-sm tabular-nums text-[var(--muted)] max-lg:hidden">{{ mmss(total) }}</span>
     </div>
 
     <!-- rien ne se selectionne dans une barre d'outils : ca ne sert a personne
@@ -206,7 +221,7 @@ function onRemove() {
 
         <button
           type="button"
-          class="flex h-8 shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-[var(--ink)] pr-3.5 pl-3 text-sm font-medium text-[var(--paper)] shadow-sm transition hover:opacity-90 active:scale-95"
+          class="flex h-8 shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-[var(--ink)] pr-3.5 pl-3 text-sm font-medium text-[var(--paper)] shadow-sm transition hover:opacity-90 active:scale-95 max-sm:w-8 max-sm:justify-center max-sm:px-0"
           @click="emit('exporter')"
         >
           <!-- solar:download-minimalistic-linear, la meme que la barre d'export -->
@@ -224,7 +239,11 @@ function onRemove() {
               <path d="M12 3V16M8 11.625L12 16L16 11.625" />
             </g>
           </svg>
-          {{ t('timeline.export') }}
+          <!-- `sr-only` et pas `hidden` : sous 40rem le bouton se reduit a son
+               icone, mais le libelle reste son NOM accessible — un bouton dont
+               tout le contenu est masque n'est plus annonce du tout, et il
+               n'aurait alors ni `aria-label` ni texte. -->
+          <span class="max-sm:sr-only">{{ t('timeline.export') }}</span>
         </button>
       </div>
 
@@ -242,7 +261,7 @@ function onRemove() {
       />
 
       <!-- barre d'outils, dans le coin : loupe, compteur, aperçu -->
-      <div class="flex shrink-0 items-center justify-end gap-4">
+      <div class="flex shrink-0 items-center justify-end gap-4 max-sm:gap-2">
         <ZoomSlider v-model:zoom="zoom" :min="MIN_ZOOM" :max="MAX_ZOOM" />
 
         <p class="text-xs tabular-nums text-[var(--muted)]">

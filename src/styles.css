@@ -33,6 +33,23 @@
   --bascule: 1s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/*
+ * La meme barre, sur une fenetre etroite : 236 px, c'est 29 % d'un ecran de
+ * telephone, et la hauteur qu'elle prend est retranchee de tout ce qui reste.
+ * 200 px laissent la regle (28 px) et des cartes de 64 px, soit la vignette a sa
+ * taille maximale — en dessous les cartes ne montrent plus rien.
+ *
+ * La variable est lue par la reserve de la scene et par le plafond de l'avatar,
+ * qui valent a toutes les largeurs. Les calages fins de `.barre-export` et des
+ * colonnes, eux, sont dans la requete `>= 64rem` : ils ne voient jamais cette
+ * valeur.
+ */
+@media (width < 64rem) {
+  :root {
+    --timeline: 200px;
+  }
+}
+
 html,
 body,
 #app {
@@ -193,6 +210,57 @@ body,
 @starting-style {
   .wordmark {
     opacity: 0;
+  }
+}
+
+/*
+ * Le mot sous 64rem : DANS LE FLUX, en bas de la page et centre.
+ *
+ * Le calage sorti du flux ne tient que tant que `#app` fait exactement la hauteur
+ * de la fenetre, ce qui est vrai au-dessus de 64rem — rien n'y defile. En dessous
+ * la page defile pour de vrai, et le mot restait a 812 px du haut du DOCUMENT :
+ * par-dessus les credits au repos (mesure a 375 px : panneau jusqu'a 780, mot des
+ * 753), puis en plein milieu de l'ecran une fois la page deroulee. Le remettre
+ * dans le flux le rend a la page : il vient apres la scene, donc en dernier, et
+ * rien ne peut plus lui passer dessus puisqu'il n'y a plus de recouvrement.
+ *
+ * Centre et non cale a gauche : les 6rem de marge degageaient le rail, qui est
+ * passe en bande HAUTE a cette largeur. Il n'y a plus rien a contourner, et un mot
+ * pleine largeur pose sous une colonne centree se lit de travers s'il ne l'est
+ * pas. La marge droite de 0,1em disparait avec le calage : le centrage laisse du
+ * jeu des deux cotes, donc le dernier B n'a plus de bord ou se couper.
+ *
+ * Le plafond descend a 200 px : sur une fenetre de tablette, 268 px de decoration
+ * mangeaient un quart de la page. Et le diviseur perd les 6rem de marge gauche,
+ * qui n'existent plus ici — le mot occupe la largeur entiere moins les gouttieres
+ * de la scene.
+ */
+@media (width < 64rem) {
+  .wordmark {
+    position: static;
+    text-align: center;
+    padding-right: 0;
+    font-size: clamp(80px, calc((100vw - 2.5rem) / 3.05), 200px);
+    /*
+     * Les lettres touchent le bord bas de la page.
+     *
+     * Une marge negative n'y suffit pas : la zone defilable est l'union des BOITES
+     * des descendants, les marges n'y entrent pas, et le talon de la fonte —
+     * l'espace des jambages, vide pour BLOUB qui n'en a aucun — depassait la boite
+     * de 21 px que la page comptait quand meme. D'ou 21 px de blanc sous le mot.
+     *
+     * On rogne donc a la LIGNE DE BASE : plus rien ne deborde, la page s'arrete ou
+     * les lettres s'arretent. C'est ce que fait le rognage de `#app` au-dessus de
+     * 64rem, ou le mot est simplement pose sous le bord.
+     */
+    height: 0.69em;
+    overflow: hidden;
+    /*
+     * Le degrade est peint sur la BOITE et revele au travers des lettres : rogner
+     * la boite l'aurait eteint plus haut (il s'annule a 88 % de sa hauteur). On lui
+     * rend donc la hauteur de la boite pleine, independamment du rognage.
+     */
+    background-size: 100% 0.78em;
   }
 }
 

@@ -790,10 +790,20 @@ watch(
          des reglages, qui ne doivent pas se recentrer d'un onglet a l'autre —
          est desormais porte par ces deux colonnes elles-memes, sous la forme de
          la meme hauteur de bande (`100dvh - 3rem - var(--timeline)`). -->
+    <!-- `max-lg:px-5` : 2rem de marge laterale sur une fenetre de 375 px, c'est un
+         sixieme de la largeur pour rien. Le padding BAS n'est pas touche ici : la
+         vue Animations le remplace par la reserve de la barre de montage, et une
+         variante `max-lg:pb-*` reprendrait la main dessus. -->
     <div
-      class="scene min-h-full items-stretch justify-center p-8 max-lg:flex max-lg:flex-col max-lg:gap-10"
+      class="scene min-h-full items-stretch justify-center p-8 max-lg:flex max-lg:flex-col max-lg:gap-10 max-lg:px-5"
       :class="[
         !preview && view === 'animations' && 'pb-[calc(var(--timeline)_+_1rem)]',
+        // Sous 64rem le rail passe en bande HAUTE (cf. `SideRail`), et il flotte
+        // comme il flottait a gauche : la scene doit lui reserver sa hauteur,
+        // sinon le premier element de la pile lui passe dessous. Sauf en apercu,
+        // le seul cas ou le rail est DEMONTE — y reserver sa place descendait
+        // l'avatar de 80 px pour rien.
+        !preview && 'max-lg:pt-20',
         nue || preview ? 'scene--seule' : view === 'reglages' && 'scene--gauche'
       ]"
     >
