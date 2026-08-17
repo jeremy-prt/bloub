@@ -96,6 +96,11 @@ Props: `size`, `shape`, `color`, `expression`, `paper`, `frozenAt`, `cycle`,
 `follow`, `gaze`. Models: `block`, `state`, `playing`, `elapsed`. See
 [BloubBot.vue](src/components/BloubBot.vue) for the details.
 
+## Changes
+
+[CHANGELOG.md](CHANGELOG.md), one entry per release — which is how you tell whether the
+copy you have carries a given fix.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
