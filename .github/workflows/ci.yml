@@ -1,5 +1,10 @@
 name: ci
-on: [push, pull_request]
+# `push` limite a main, sinon chaque branche de PR declenche DEUX fois le meme job — une
+# fois pour le push, une fois pour la PR — sur exactement le meme commit.
+on:
+  push:
+    branches: [main]
+  pull_request:
 jobs:
   verifie:
     runs-on: ubuntu-latest
