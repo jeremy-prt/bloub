@@ -23,6 +23,32 @@ pnpm build    # vue-tsc --noEmit && vite build
 Vue 3, Vite, TypeScript, Tailwind 4. No ESLint and no Prettier: `vue-tsc` is the
 only gate, so run `pnpm build` before you call something done.
 
+## Deploying on W7S
+
+This repo includes a W7S GitHub Actions workflow at
+[.github/workflows/deploy.yml](.github/workflows/deploy.yml). It installs the
+pinned pnpm version, runs the test suite, builds the Vite app, copies `dist`
+into a W7S artifact directory, deploys with `w7s-io/w7s-cloud@v1`, and then
+checks the live page.
+
+To get your own copy online:
+
+1. Clone the repo or fork it to a GitHub account or organization.
+2. Push it to GitHub with the default branch named `main`.
+3. Make sure GitHub Actions are enabled for the repository.
+4. Let the `Deploy to W7S` workflow run on `main`, or start it manually from the
+   Actions tab.
+5. Open `https://<github-owner>.w7s.cloud/bloub/`.
+
+For example, if the repo lives at `github.com/acme/bloub`, W7S serves it at:
+
+```text
+https://acme.w7s.cloud/bloub/
+```
+
+The Vite config uses `base: './'` so the generated asset URLs work from that
+`/bloub/` path without needing a custom domain.
+
 ## What's in it
 
 The rail on the left switches between three views. **Customise** offers 8 body
