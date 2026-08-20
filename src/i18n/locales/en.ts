@@ -141,7 +141,8 @@ const en: typeof fr = {
     hexagone: 'Hexagon',
     nuage: 'Cloud',
     goutte: 'Droplet',
-    losange: 'Diamond'
+    losange: 'Diamond',
+    fantome: 'Ghost'
   },
 
   colors: {

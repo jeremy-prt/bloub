@@ -34,6 +34,7 @@ export type ShapeId =
   | 'nuage'
   | 'goutte'
   | 'losange'
+  | 'fantome'
 
 export interface BotShape {
   id: ShapeId
@@ -77,6 +78,86 @@ const droplet = normalize(
 /** Capsule couchee : enveloppe de deux disques cote a cote. */
 const capsule = profileFromPolygon(hullOfCircles(-0.42, 0, 0.62, 0.42, 0, 0.62), 0, 0)
 
+/** Adoucit un profil sans modifier les autres formes du catalogue. */
+function softenProfile(radii: number[], passes = 2): number[] {
+  let out = [...radii]
+  for (let pass = 0; pass < passes; pass++) {
+    out = out.map((r, i) => {
+      const prev = out[(i - 1 + out.length) % out.length] ?? r
+      const next = out[(i + 1) % out.length] ?? r
+      return (prev + 2 * r + next) / 4
+    })
+  }
+  return out
+}
+
+/** Fantome Pac-Man : dome haut, flancs droits et trois pieds ondulants. */
+const ghost = normalize(
+  softenProfile(
+    profileFromPolygon(
+      [
+      { x: 0, y: -1.05 },
+      { x: 0.22, y: -1.01 },
+      { x: 0.43, y: -0.91 },
+      { x: 0.6, y: -0.74 },
+      { x: 0.73, y: -0.5 },
+      { x: 0.79, y: -0.22 },
+      { x: 0.79, y: -0.02 },
+      { x: 0.785, y: 0.2 },
+      { x: 0.77, y: 0.4 },
+      { x: 0.74, y: 0.54 },
+      { x: 0.7, y: 0.66 },
+      { x: 0.65, y: 0.76 },
+      { x: 0.59, y: 0.83 },
+      { x: 0.52, y: 0.88 },
+      { x: 0.45, y: 0.89 },
+      { x: 0.39, y: 0.86 },
+      { x: 0.34, y: 0.8 },
+      { x: 0.29, y: 0.71 },
+      { x: 0.25, y: 0.62 },
+      { x: 0.21, y: 0.59 },
+      { x: 0.165, y: 0.68 },
+      { x: 0.115, y: 0.78 },
+      { x: 0.07, y: 0.88 },
+      { x: 0.035, y: 0.93 },
+      { x: 0, y: 0.95 },
+      { x: -0.035, y: 0.93 },
+      { x: -0.07, y: 0.88 },
+      { x: -0.12, y: 0.78 },
+      { x: -0.17, y: 0.68 },
+      { x: -0.21, y: 0.59 },
+      { x: -0.25, y: 0.62 },
+      { x: -0.29, y: 0.71 },
+      { x: -0.34, y: 0.8 },
+      { x: -0.39, y: 0.86 },
+      { x: -0.45, y: 0.89 },
+      { x: -0.52, y: 0.88 },
+      { x: -0.59, y: 0.83 },
+      { x: -0.65, y: 0.76 },
+      { x: -0.7, y: 0.66 },
+      { x: -0.74, y: 0.54 },
+      { x: -0.77, y: 0.4 },
+      { x: -0.785, y: 0.2 },
+      { x: -0.79, y: -0.02 },
+      { x: -0.79, y: -0.22 },
+      { x: -0.73, y: -0.5 },
+      { x: -0.6, y: -0.74 },
+        { x: -0.43, y: -0.91 },
+        { x: -0.22, y: -1.01 }
+      ].map(({ x, y }) => {
+        // Une seule courbe de resserrement pour eviter un faux creux a la taille.
+        const t = Math.max(0, Math.min(1, (y + 0.35) / 1.2))
+        const eased = t * t * (3 - 2 * t)
+        return { x: x * (1 - 0.14 * eased), y }
+      }),
+      0,
+      0
+    ),
+    3
+  ),
+  1.04
+)
+
 export const SHAPES: BotShape[] = [
   { id: 'cercle', radii: new Array(PROFILE_SAMPLES).fill(1) },
   { id: 'galet', radii: pebble },
@@ -90,7 +171,8 @@ export const SHAPES: BotShape[] = [
   { id: 'hexagone', radii: regularPolygonProfile(6, 1.04, 0.26, 0) },
   { id: 'nuage', radii: cloud },
   { id: 'goutte', radii: droplet },
-  { id: 'losange', radii: regularPolygonProfile(4, 1.08, 0.16, -90) }
+  { id: 'losange', radii: regularPolygonProfile(4, 1.08, 0.16, -90) },
+  { id: 'fantome', radii: ghost }
 ]
 
 // Map indexee par `string` et non par `ShapeId` : les appelants interrogent avec

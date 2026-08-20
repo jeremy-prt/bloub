@@ -166,7 +166,8 @@ export default {
     hexagone: 'Hexagone',
     nuage: 'Nuage',
     goutte: 'Goutte',
-    losange: 'Losange'
+    losange: 'Losange',
+    fantome: 'Fantôme'
   },
 
   colors: {
