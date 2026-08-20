@@ -3,6 +3,7 @@ import {
   hullOfCircles,
   profileFromPolygon,
   regularPolygonProfile,
+  roundFlowerProfile,
   superellipseProfile,
   unionOfCirclesProfile
 } from './shape'
@@ -35,6 +36,9 @@ export type ShapeId =
   | 'goutte'
   | 'losange'
   | 'fantome'
+  | 'fleur4'
+  | 'fleur5'
+  | 'fleur6'
 
 export interface BotShape {
   id: ShapeId
@@ -77,6 +81,38 @@ const droplet = normalize(
 
 /** Capsule couchee : enveloppe de deux disques cote a cote. */
 const capsule = profileFromPolygon(hullOfCircles(-0.42, 0, 0.62, 0.42, 0, 0.62), 0, 0)
+
+/** Fleurs tres rondes : les creux restent legers. */
+// Rotation 45deg : deux petales en haut et deux petales en bas.
+const ROUND_FLOWER_PETAL_RADIUS = 0.52
+const ROUND_FLOWER_CENTER_DISTANCE = 0.56
+const ROUND_FLOWER_CENTER_RADIUS = 0.5
+const roundFlower = (
+  petals: number,
+  rotation: number,
+  centerDistance = ROUND_FLOWER_CENTER_DISTANCE,
+  petalRadius = ROUND_FLOWER_PETAL_RADIUS,
+  smoothing = 4
+) =>
+  normalize(
+    softenProfile(
+      roundFlowerProfile(
+        petals,
+        petalRadius,
+        centerDistance,
+        rotation,
+        ROUND_FLOWER_CENTER_RADIUS
+      ),
+      smoothing
+    ),
+    1.06
+  )
+
+const flower4 = roundFlower(4, 45)
+const flower5 = roundFlower(5, -90)
+// Les six petales se recouvrent davantage a distance egale : on les ecarte
+// legerement pour conserver une encoche visible, sans changer leur arc.
+const flower6 = roundFlower(6, -90, 0.86, 0.52, 6)
 
 /** Adoucit un profil sans modifier les autres formes du catalogue. */
 function softenProfile(radii: number[], passes = 2): number[] {
@@ -172,7 +208,10 @@ export const SHAPES: BotShape[] = [
   { id: 'nuage', radii: cloud },
   { id: 'goutte', radii: droplet },
   { id: 'losange', radii: regularPolygonProfile(4, 1.08, 0.16, -90) },
-  { id: 'fantome', radii: ghost }
+  { id: 'fantome', radii: ghost },
+  { id: 'fleur4', radii: flower4 },
+  { id: 'fleur5', radii: flower5 },
+  { id: 'fleur6', radii: flower6 }
 ]
 
 // Map indexee par `string` et non par `ShapeId` : les appelants interrogent avec

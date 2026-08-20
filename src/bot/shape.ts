@@ -232,6 +232,27 @@ export function unionOfCirclesProfile(circles: Array<{ x: number; y: number; r: 
   return out
 }
 
+/** Profil d'une fleur faite de cercles qui se chevauchent. */
+export function roundFlowerProfile(
+  petals: number,
+  petalRadius: number,
+  centerDistance: number,
+  rotationDeg = 0,
+  centerRadius = 0
+): number[] {
+  const rot = (rotationDeg * Math.PI) / 180
+  const circles = Array.from({ length: petals }, (_, i) => {
+    const a = rot + (i / petals) * TAU
+    return {
+      x: Math.cos(a) * centerDistance,
+      y: Math.sin(a) * centerDistance,
+      r: petalRadius
+    }
+  })
+  if (centerRadius > 0) circles.push({ x: 0, y: 0, r: centerRadius })
+  return unionOfCirclesProfile(circles)
+}
+
 /**
  * Polygone a coins arrondis, par somme de Minkowski avec un disque : chaque
  * arete est poussee de `rc` vers l'exterieur, chaque sommet devient un arc de

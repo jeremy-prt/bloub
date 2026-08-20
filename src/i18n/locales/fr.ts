@@ -167,7 +167,10 @@ export default {
     nuage: 'Nuage',
     goutte: 'Goutte',
     losange: 'Losange',
-    fantome: 'Fantôme'
+    fantome: 'Fantôme',
+    fleur4: 'Fleur à 4 pétales',
+    fleur5: 'Fleur à 5 pétales',
+    fleur6: 'Fleur à 6 pétales'
   },
 
   colors: {

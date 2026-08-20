@@ -142,7 +142,10 @@ const en: typeof fr = {
     nuage: 'Cloud',
     goutte: 'Droplet',
     losange: 'Diamond',
-    fantome: 'Ghost'
+    fantome: 'Ghost',
+    fleur4: '4-petal flower',
+    fleur5: '5-petal flower',
+    fleur6: '6-petal flower'
   },
 
   colors: {
