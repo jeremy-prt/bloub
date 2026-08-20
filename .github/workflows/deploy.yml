@@ -42,7 +42,6 @@ jobs:
           rm -rf .w7s-deploy
           mkdir -p .w7s-deploy
           cp -R dist .w7s-deploy/dist
-          cp w7s.json .w7s-deploy/w7s.json
 
       - uses: w7s-io/w7s-cloud@v1
         with:

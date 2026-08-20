@@ -27,9 +27,9 @@ only gate, so run `pnpm build` before you call something done.
 
 This repo includes a W7S GitHub Actions workflow at
 [.github/workflows/deploy.yml](.github/workflows/deploy.yml). It installs the
-pinned pnpm version, runs the test suite, builds the Vite app, copies `dist` and
-`w7s.json` into a W7S artifact directory, deploys with `w7s-io/w7s-cloud@v1`, and
-then checks the live page.
+pinned pnpm version, runs the test suite, builds the Vite app, copies `dist`
+into a W7S artifact directory, deploys with `w7s-io/w7s-cloud@v1`, and then
+checks the live page.
 
 To get your own copy online:
 
