@@ -165,7 +165,12 @@ export default {
     triangle: 'Triangle',
     hexagone: 'Hexagone',
     nuage: 'Nuage',
-    goutte: 'Goutte'
+    goutte: 'Goutte',
+    losange: 'Losange',
+    fantome: 'Fantôme',
+    fleur4: 'Fleur à 4 pétales',
+    fleur5: 'Fleur à 5 pétales',
+    fleur6: 'Fleur à 6 pétales'
   },
 
   colors: {

@@ -143,7 +143,12 @@ const zh: typeof fr = {
     triangle: '三角形',
     hexagone: '六边形',
     nuage: '云朵',
-    goutte: '水滴'
+    goutte: '水滴',
+    losange: '菱形',
+    fantome: '幽灵',
+    fleur4: '四瓣花',
+    fleur5: '五瓣花',
+    fleur6: '六瓣花'
   },
 
   colors: {
