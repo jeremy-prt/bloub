@@ -1,0 +1,58 @@
+name: Deploy to W7S
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.17.0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm test
+
+      - run: pnpm build
+
+      - name: Assemble W7S artifact
+        run: |
+          set -euo pipefail
+          rm -rf .w7s-deploy
+          mkdir -p .w7s-deploy
+          cp -R dist .w7s-deploy/dist
+          cp w7s.json .w7s-deploy/w7s.json
+
+      - uses: w7s-io/w7s-cloud@v1
+        with:
+          token: ${{ github.token }}
+          working-directory: .w7s-deploy
+
+      - name: Verify live deployment
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          repo="${GITHUB_REPOSITORY#*/}"
+          url="https://${owner}.w7s.cloud/${repo}/"
+          curl --retry 5 --retry-delay 3 --fail --show-error --silent "$url" | grep -i "bloub, avatar SVG"
