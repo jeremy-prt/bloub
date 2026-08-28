@@ -439,7 +439,7 @@ const droite = computed(() => !nue.value && view.value !== 'reglages')
 /* ------------------------------------------------------------------- skins */
 
 const shape = ref(stored('forme', DEFAULT_SHAPE, (v) => SHAPE_BY_ID.has(v)))
-const color = ref(stored('couleur', DEFAULT_COLOR, (v) => COLOR_BY_ID.has(v)))
+const color = ref(stored('couleur', DEFAULT_COLOR, (v) => COLOR_BY_ID.has(v) || v.startsWith('#')))
 const expression = ref(
   stored('expression', DEFAULT_EXPRESSION, (v) => EXPRESSION_BY_ID.has(v))
 )

@@ -596,3 +596,39 @@ body {
     ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+/* Custom styling for react-colorful */
+.custom-color-picker.react-colorful {
+  width: 100%;
+  height: 180px;
+  border-radius: 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--line);
+  background: transparent;
+}
+
+.custom-color-picker .react-colorful__saturation {
+  border-radius: 12px 12px 0 0;
+}
+
+.custom-color-picker .react-colorful__hue {
+  height: 20px;
+  border-radius: 0 0 12px 12px;
+  margin-top: 6px;
+}
+
+.custom-color-picker .react-colorful__pointer {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.custom-color-picker .react-colorful__pointer:hover,
+.custom-color-picker .react-colorful__pointer:active {
+  transform: scale(1.15);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+}
+

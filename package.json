@@ -26,7 +26,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
     "mediabunny": "^1.54.0",
+    "react": "^19.2.8",
+    "react-colorful": "^5.8.0",
+    "react-dom": "^19.2.8",
     "vue": "^3.5.41"
   },
   "devDependencies": {

@@ -134,6 +134,13 @@ export const COLORS: BotColor[] = [
 export const COLOR_BY_ID = new Map<string, BotColor>(COLORS.map((c) => [c.id, c]))
 export const DEFAULT_COLOR = 'encre'
 
+/** Connecte un ID de preset ou un hex direct a sa valeur hex. */
+export function resolveHexColor(color?: string): string {
+  if (!color) return COLORS[0]!.hex
+  return COLOR_BY_ID.get(color)?.hex ?? (color.startsWith('#') ? color : null) ?? COLORS[0]!.hex
+}
+
+
 /** Melange deux couleurs hex. Sert a la brume de profondeur des particules. */
 export function mixHex(from: string, to: string, t: number): string {
   const parse = (h: string) => {
