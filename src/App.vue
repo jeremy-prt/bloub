@@ -54,7 +54,7 @@ import {
   type Cycle
 } from '@/bot/cycles'
 import { DEFAULT_EXPRESSION, EXPRESSION_BY_ID } from '@/bot/expressions'
-import { COLOR_BY_ID, DEFAULT_COLOR, DEFAULT_SHAPE, SHAPE_BY_ID } from '@/bot/skins'
+import { COLORS, COLOR_BY_ID, DEFAULT_COLOR, DEFAULT_SHAPE, SHAPE_BY_ID } from '@/bot/skins'
 import { POSES, SEQUENCE, STATES, type StateId } from '@/bot/states'
 
 /**
@@ -170,6 +170,22 @@ const block = ref(0)
 const elapsed = ref(0)
 
 const cycle = computed(() => cycles.value.find((c) => c.id === activeId.value) ?? cycles.value[0]!)
+
+// Couleur du bloc selectionne dans la piste
+const selectedBlockColor = computed({
+  get() {
+    const b = cycle.value.blocks[block.value]
+    return b?.color ?? null
+  },
+  set(colorId: string | null) {
+    const blocks = cycle.value.blocks.map((b, i) =>
+      i === block.value ? { ...b, color: colorId ?? undefined } : b
+    )
+    cycles.value = cycles.value.map((c) =>
+      c.id === cycle.value.id ? { ...c, blocks } : c
+    )
+  }
+})
 
 // un lien vers un etat precis ouvre le montage qui le contient
 if (initial.named) {
@@ -595,7 +611,16 @@ async function exporteCycle() {
   const images = cycleImages(totalDuration(blocs), format)
   const pas = cyclePas(format)
   const taille = CYCLE_TAILLE[format]
-  const reglages = { shape: shape.value, color: color.value, expression: expression.value }
+  const blockColors: Record<number, string> = {}
+  blocs.forEach((b, i) => {
+    if (b.color) blockColors[i] = b.color
+  })
+  const reglages = {
+    shape: shape.value,
+    color: color.value,
+    expression: expression.value,
+    blockColors: Object.keys(blockColors).length ? blockColors : undefined
+  }
   const suit = (fait: number, total: number) => (avancementCycle.value = fait / total)
 
   avancementCycle.value = 0
@@ -614,7 +639,8 @@ async function exporteCycle() {
           suit,
           controle.signal
         )
-    telecharge(fichier, nomFichier(nomDeCycle(cycle.value), '', '', mp4 ? 'mp4' : 'gif'))
+    const couleurNom = Object.keys(blockColors).length > 0 ? 'multi' : color.value
+    telecharge(fichier, nomFichier(nomDeCycle(cycle.value), '', couleurNom, mp4 ? 'mp4' : 'gif'))
     dialogueCycle.value = false
   } catch (e) {
     // Un abandon n'est pas un echec : on ne signale pas a quelqu'un qu'il a obtenu ce
@@ -964,6 +990,37 @@ watch(
               @click="addBlock(s.id)"
             />
           </div>
+
+          <!-- section couleur du bloc selectionne -->
+          <h2 class="mt-5 text-sm font-semibold">{{ t('panel.color') }}</h2>
+          <div class="mt-2 grid grid-cols-6 gap-1.5">
+            <button
+              v-for="c in COLORS"
+              :key="c.id"
+              type="button"
+              class="flex aspect-square cursor-pointer items-center justify-center rounded-full border-2 transition"
+              :class="
+                selectedBlockColor === c.id
+                  ? 'border-[var(--ink)]'
+                  : 'border-transparent hover:border-[var(--line)]'
+              "
+              :aria-label="t(`colors.${c.id}`)"
+              :aria-pressed="selectedBlockColor === c.id"
+              @click="selectedBlockColor = c.id"
+            >
+              <span
+                class="block h-[78%] w-[78%] rounded-full ring-1 ring-black/10 ring-inset"
+                :style="{ background: c.hex }"
+              />
+            </button>
+          </div>
+          <button
+            type="button"
+            class="mt-2 cursor-pointer text-xs text-[var(--muted)] underline underline-offset-2 hover:text-[var(--ink)]"
+            @click="selectedBlockColor = null"
+          >
+            {{ t('panel.colorDefault') }}
+          </button>
         </template>
 
         <!-- personnalisation -->

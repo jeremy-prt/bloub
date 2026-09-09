@@ -11,6 +11,7 @@ import {
   type Block
 } from '@/bot/cycles'
 import { POSES, type StateId } from '@/bot/states'
+import { COLOR_BY_ID } from '@/bot/skins'
 import { BASE_SCALE, clampZoom, ticksFor } from '@/ui/timeline'
 import { secondes, secondesCourtes, t } from '@/i18n'
 
@@ -421,6 +422,13 @@ function onRulerMove(e: PointerEvent) {
               >
                 {{ secondes(b.duration) }}
               </span>
+              <!-- pastille de couleur du bloc -->
+              <span
+                v-if="b.color && width(i) > 50"
+                class="absolute bottom-1 right-1 h-2 w-2 rounded-full ring-1 ring-black/10 ring-inset"
+                :style="{ background: COLOR_BY_ID.get(b.color)?.hex ?? '#0a0a0c' }"
+                aria-hidden="true"
+              />
             </button>
 
             <!-- poignee de duree : bouton a part entiere, donc utilisable au clavier -->

@@ -32,7 +32,9 @@ const zh: typeof fr = {
     animations: '动画',
     shape: '形状',
     expression: '表情',
-    color: '颜色'
+    color: '颜色',
+    colorDefault: '默认',
+    colorNone: '选择一个区块以更改其颜色'
   },
 
   export: {

@@ -44,7 +44,9 @@ export default {
     animations: 'Animation',
     shape: 'Forme',
     expression: 'Expression',
-    color: 'Couleur'
+    color: 'Couleur',
+    colorDefault: 'Par défaut',
+    colorNone: 'Sélectionnez un bloc pour changer sa couleur'
   },
 
   /**
