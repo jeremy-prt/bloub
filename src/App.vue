@@ -611,7 +611,16 @@ async function exporteCycle() {
   const images = cycleImages(totalDuration(blocs), format)
   const pas = cyclePas(format)
   const taille = CYCLE_TAILLE[format]
-  const reglages = { shape: shape.value, color: color.value, expression: expression.value }
+  const blockColors: Record<number, string> = {}
+  blocs.forEach((b, i) => {
+    if (b.color) blockColors[i] = b.color
+  })
+  const reglages = {
+    shape: shape.value,
+    color: color.value,
+    expression: expression.value,
+    blockColors: Object.keys(blockColors).length ? blockColors : undefined
+  }
   const suit = (fait: number, total: number) => (avancementCycle.value = fait / total)
 
   avancementCycle.value = 0

@@ -246,6 +246,8 @@ export interface ReglagesBot {
   shape: string
   color: string
   expression: string
+  /** Bloc index → ColorId override, for cycle export with per-block colors. */
+  blockColors?: Record<number, string>
 }
 
 /**
@@ -331,13 +333,17 @@ export async function ouvreCycle(
   hote.style.cssText = 'position:fixed;left:-99999px;top:0;width:0;height:0;overflow:hidden'
   document.body.appendChild(hote)
 
+  const blocsAvecCouleur = reglages.blockColors
+    ? blocs.map((b, i) => ({ ...b, color: reglages.blockColors![i] ?? b.color }))
+    : blocs
+
   const bot = ref<{ rendAt: (t: number) => void } | null>(null)
   const app = createApp({
     render: () =>
       h(BloubBot, {
         ...reglages,
         size: taille,
-        cycle: blocs,
+        cycle: blocsAvecCouleur,
         /*
          * Le moteur se construit sur l'etat qu'on lui donne, et l'image 0 doit
          * etre le PREMIER etat du montage. Sans cette prop le modele prenait son
