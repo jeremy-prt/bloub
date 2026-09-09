@@ -639,7 +639,8 @@ async function exporteCycle() {
           suit,
           controle.signal
         )
-    telecharge(fichier, nomFichier(nomDeCycle(cycle.value), '', '', mp4 ? 'mp4' : 'gif'))
+    const couleurNom = Object.keys(blockColors).length > 0 ? 'multi' : color.value
+    telecharge(fichier, nomFichier(nomDeCycle(cycle.value), '', couleurNom, mp4 ? 'mp4' : 'gif'))
     dialogueCycle.value = false
   } catch (e) {
     // Un abandon n'est pas un echec : on ne signale pas a quelqu'un qu'il a obtenu ce
