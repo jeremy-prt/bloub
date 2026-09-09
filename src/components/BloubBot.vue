@@ -105,7 +105,7 @@ const prevBlockColor = ref<string | null>(null)
 
 // --- fondu de couleur ---
 
-let colorBlendT = 1
+const colorBlendT = ref(1)
 
 /**
  * Encre résolue : pendant un fondu entre deux blocs de couleurs differentes,
@@ -113,9 +113,9 @@ let colorBlendT = 1
  */
 const ink = computed(() => {
   const target = COLOR_BY_ID.get(blockColor.value)?.hex ?? '#0a0a0c'
-  if (colorBlendT >= 1 || !prevBlockColor.value) return target
+  if (colorBlendT.value >= 1 || !prevBlockColor.value) return target
   const from = COLOR_BY_ID.get(prevBlockColor.value)?.hex ?? '#0a0a0c'
-  return mixHex(from, target, easings.easeOutQuint(clamp(colorBlendT)))
+  return mixHex(from, target, easings.easeOutQuint(clamp(colorBlendT.value)))
 })
 
 const engine = new BotEngine(R, state.value, shapeRadii.value, expression.value)
@@ -364,10 +364,10 @@ function tick(ms: number) {
   }
 
   // Avancer le fondu de couleur, meme courbe que la forme.
-  if (colorBlendT < 1) {
+  if (colorBlendT.value < 1) {
     const curBlock = props.cycle[block.value]
     const morph = curBlock ? (STATE_BY_ID.get(curBlock.state)?.morph ?? 0.45) : 0.45
-    colorBlendT = Math.min(1, colorBlendT + dt / morph)
+    colorBlendT.value = Math.min(1, colorBlendT.value + dt / morph)
   }
 
   // Le suivi prime : les deux ecrivent la meme cible, et l'arrivee est terminee
@@ -408,7 +408,7 @@ watch(block, (now, before) => {
     prevBlockColor.value = null
     return
   }
-  colorBlendT = 0
+  colorBlendT.value = 0
   prevBlockColor.value = curColorId
 })
 
