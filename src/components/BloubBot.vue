@@ -88,8 +88,35 @@ const R = RAYON
 const VB = DEMI_VIEWBOX
 
 const shapeRadii = computed(() => SHAPE_BY_ID.get(props.shape)?.radii ?? null)
-const ink = computed(() => COLOR_BY_ID.get(props.color)?.hex ?? '#0a0a0c')
 const expression = computed(() => EXPRESSION_BY_ID.get(props.expression) ?? null)
+
+/**
+ * Couleur du bloc courant : override du bloc, ou defaut du personnalisateur.
+ */
+const blockColor = computed(() => {
+  const b = props.cycle[block.value]
+  return b?.color ?? props.color
+})
+
+/**
+ * Couleur du bloc precedent, pour le fondu pendant les transitions.
+ */
+const prevBlockColor = ref<string | null>(null)
+
+// --- fondu de couleur ---
+
+let colorBlendT = 1
+
+/**
+ * Encre résolue : pendant un fondu entre deux blocs de couleurs differentes,
+ * on interpole avec la meme courbe que la forme (easeOutQuint).
+ */
+const ink = computed(() => {
+  const target = COLOR_BY_ID.get(blockColor.value)?.hex ?? '#0a0a0c'
+  if (colorBlendT >= 1 || !prevBlockColor.value) return target
+  const from = COLOR_BY_ID.get(prevBlockColor.value)?.hex ?? '#0a0a0c'
+  return mixHex(from, target, easings.easeOutQuint(clamp(colorBlendT)))
+})
 
 const engine = new BotEngine(R, state.value, shapeRadii.value, expression.value)
 const frame = shallowRef<BotFrame>(engine.sample(props.frozenAt ?? 0))
@@ -336,6 +363,13 @@ function tick(ms: number) {
     }
   }
 
+  // Avancer le fondu de couleur, meme courbe que la forme.
+  if (colorBlendT < 1) {
+    const curBlock = props.cycle[block.value]
+    const morph = curBlock ? (STATE_BY_ID.get(curBlock.state)?.morph ?? 0.45) : 0.45
+    colorBlendT = Math.min(1, colorBlendT + dt / morph)
+  }
+
   // Le suivi prime : les deux ecrivent la meme cible, et l'arrivee est terminee
   // bien avant qu'une vue a suivi ne s'ouvre.
   if (props.follow) aim()
@@ -358,6 +392,24 @@ function redrawFrozen() {
 watch(block, (i) => {
   apply(i, pendingOffset)
   pendingOffset = 0
+})
+
+// Fondu de couleur entre deux blocs : meme courbe que la forme (easeOutQuint).
+// La duree du fondu est le morph du bloc cible.
+watch(block, (now, before) => {
+  if (now === before) return
+  const curBlock = props.cycle[now]
+  const prevBlock = before !== undefined ? props.cycle[before] : null
+  const curColorId = curBlock?.color ?? props.color
+  const prevColorId = prevBlock?.color ?? props.color
+  const curHex = COLOR_BY_ID.get(curColorId)?.hex ?? '#0a0a0c'
+  const prevHex = COLOR_BY_ID.get(prevColorId)?.hex ?? '#0a0a0c'
+  if (curHex === prevHex) {
+    prevBlockColor.value = null
+    return
+  }
+  colorBlendT = 0
+  prevBlockColor.value = curColorId
 })
 
 // Changement d'etat venu d'une prop : c'est le cas des vignettes figees, qui
