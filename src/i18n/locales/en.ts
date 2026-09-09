@@ -27,7 +27,9 @@ const en: typeof fr = {
     animations: 'Animation',
     shape: 'Shape',
     expression: 'Expression',
-    color: 'Colour'
+    color: 'Colour',
+    colorDefault: 'Default',
+    colorNone: 'Select a block to change its colour'
   },
 
   export: {
