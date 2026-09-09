@@ -152,6 +152,24 @@ describe('relecture du stockage', () => {
     expect(parseCycles(doublon).map((c) => c.name)).toEqual(['A'])
   })
 
+  it('accepte un bloc avec une couleur valide', () => {
+    const raw = '[{"id":"c1","name":"A","blocks":[{"state":"idle","duration":2,"color":"bleu"}]}]'
+    const cycle = parseCycles(raw)[0]!
+    expect(cycle!.blocks[0]!.color).toBe('bleu')
+  })
+
+  it('jette une couleur inconnue', () => {
+    const raw = '[{"id":"c1","name":"A","blocks":[{"state":"idle","duration":2,"color":"inconnue"}]}]'
+    const cycle = parseCycles(raw)[0]!
+    expect(Object.keys(cycle!.blocks[0]!)).toEqual(['state', 'duration'])
+  })
+
+  it('garde le champ color dans le modele', () => {
+    const raw = '[{"id":"defaut","name":"M","blocks":[{"state":"idle","duration":2,"color":"rouge","vitesse":3}]}]'
+    const cycle = parseCycles(raw)[0]!
+    expect(Object.keys(cycle!.blocks[0]!).sort()).toEqual(['color', 'duration', 'state'])
+  })
+
   it('ne garde que les champs du modele, pas ce qu on lui glisse en plus', () => {
     const raw = '[{"id":"defaut","name":"Mon montage","locked":true,"secret":1,' +
       '"blocks":[{"state":"idle","duration":2,"vitesse":3}]}]'

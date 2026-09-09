@@ -1,4 +1,5 @@
 import { SEQUENCE, STATES, STATE_BY_ID, type StateId } from './states'
+import { COLOR_BY_ID } from './skins'
 
 /**
  * Un cycle est un montage : une suite de blocs, chacun un etat tenu pendant une
@@ -13,6 +14,8 @@ import { SEQUENCE, STATES, STATE_BY_ID, type StateId } from './states'
 export interface Block {
   state: StateId
   duration: number
+  /** ColorId override; absent = use customizer default. */
+  color?: string
 }
 
 export interface Cycle {
@@ -170,7 +173,7 @@ export function nextCycleId(cycles: Cycle[]): string {
 
 function parseBlock(raw: unknown): Block | null {
   if (typeof raw !== 'object' || raw === null) return null
-  const { state, duration } = raw as { state?: unknown; duration?: unknown }
+  const { state, duration, color } = raw as { state?: unknown; duration?: unknown; color?: unknown }
   /*
    * Valide contre SEQUENCE et non contre `STATE_BY_ID` : ce dernier contient `swirl`, qui
    * est deliberement hors du catalogue — c'est la transition d'entree des reglages, un
@@ -181,7 +184,11 @@ function parseBlock(raw: unknown): Block | null {
    */
   if (typeof state !== 'string' || !SEQUENCE.includes(state as StateId)) return null
   if (typeof duration !== 'number' || !Number.isFinite(duration)) return null
-  return { state: state as StateId, duration: clampDuration(state as StateId, duration) }
+  const block: Block = { state: state as StateId, duration: clampDuration(state as StateId, duration) }
+  if (typeof color === 'string' && COLOR_BY_ID.has(color)) {
+    block.color = color
+  }
+  return block
 }
 
 function parseCycle(raw: unknown, seen: Cycle[]): Cycle | null {
