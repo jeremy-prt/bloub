@@ -246,7 +246,7 @@ export interface ReglagesBot {
   shape: string
   color: string
   expression: string
-  /** Bloc index → ColorId override, for cycle export with per-block colors. */
+  /** Index du bloc → ColorId, pour l'export cycle avec couleurs par bloc. */
   blockColors?: Record<number, string>
 }
 
@@ -282,10 +282,11 @@ export async function sequenceDuBot<T>(
   hote.style.cssText = 'position:fixed;left:-99999px;top:0;width:0;height:0;overflow:hidden'
   document.body.appendChild(hote)
 
+  const { blockColors, ...reglagesSansCouleurs } = reglages
   const date = ref(0)
   const app = createApp({
     render: () =>
-      h(BloubBot, { ...reglages, size: taille, frozenAt: date.value, ...(paper ? { paper } : {}) })
+      h(BloubBot, { ...reglagesSansCouleurs, size: taille, frozenAt: date.value, ...(paper ? { paper } : {}) })
   })
   app.mount(hote)
 
@@ -333,15 +334,16 @@ export async function ouvreCycle(
   hote.style.cssText = 'position:fixed;left:-99999px;top:0;width:0;height:0;overflow:hidden'
   document.body.appendChild(hote)
 
-  const blocsAvecCouleur = reglages.blockColors
-    ? blocs.map((b, i) => ({ ...b, color: reglages.blockColors![i] ?? b.color }))
+  const { blockColors, ...reglagesSansCouleurs } = reglages
+  const blocsAvecCouleur = blockColors
+    ? blocs.map((b, i) => ({ ...b, color: blockColors[i] ?? b.color }))
     : blocs
 
   const bot = ref<{ rendAt: (t: number) => void } | null>(null)
   const app = createApp({
     render: () =>
       h(BloubBot, {
-        ...reglages,
+        ...reglagesSansCouleurs,
         size: taille,
         cycle: blocsAvecCouleur,
         /*
