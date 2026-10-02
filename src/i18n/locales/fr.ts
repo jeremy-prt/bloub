@@ -44,7 +44,9 @@ export default {
     animations: 'Animation',
     shape: 'Forme',
     expression: 'Expression',
-    color: 'Couleur'
+    color: 'Couleur',
+    customColor: 'Code hexadécimal',
+    apply: 'Appliquer'
   },
 
   /**

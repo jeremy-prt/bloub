@@ -145,3 +145,16 @@ export function mixHex(from: string, to: string, t: number): string {
   const c = a.map((x, i) => Math.round(x + (b[i]! - x) * t))
   return `#${c.map((x) => x.toString(16).padStart(2, '0')).join('')}`
 }
+
+/** Verifie si une chaine est un code hexadecimal valide (#rgb ou #rrggbb). */
+export function isHexColor(val: string): boolean {
+  return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(val)
+}
+
+/** Normalise un code hex (#rgb -> #rrggbb) en minuscules. */
+export function normalizeHex(hex: string): string {
+  if (/^#[0-9a-fA-F]{3}$/.test(hex)) {
+    return `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`.toLowerCase()
+  }
+  return hex.toLowerCase()
+}

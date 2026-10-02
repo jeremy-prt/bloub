@@ -27,7 +27,9 @@ const en: typeof fr = {
     animations: 'Animation',
     shape: 'Shape',
     expression: 'Expression',
-    color: 'Colour'
+    color: 'Colour',
+    customColor: 'Hex code',
+    apply: 'Apply'
   },
 
   export: {
