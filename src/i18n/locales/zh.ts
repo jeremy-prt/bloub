@@ -32,7 +32,9 @@ const zh: typeof fr = {
     animations: '动画',
     shape: '形状',
     expression: '表情',
-    color: '颜色'
+    color: '颜色',
+    customColor: '十六进制代码',
+    apply: '应用'
   },
 
   export: {
