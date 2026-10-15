@@ -92,7 +92,7 @@ Details and the reasoning behind each are in [docs/](docs/):
   Already went wrong once.
 - **Labels don't live in `src/bot/`.** The catalogues carry ids and the display
   resolves `t('states.orbit')`. Their ids are **literal unions** so the compiler
-  checks that every entry has a label in all three languages. Adding a shape
+  checks that every entry has a label in all four languages. Adding a shape
   without its label doesn't compile.
 - **One state isn't measured: `swirl`**, the settings view's entry transition. It's
   deliberately outside `SEQUENCE` (a test locks that) and carries both `baseBody`

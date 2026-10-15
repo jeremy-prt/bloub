@@ -3,6 +3,9 @@ import BloubBot from '@/components/BloubBot.vue'
 import { DEFAULT_EXPRESSION } from '@/bot/expressions'
 import { DEFAULT_COLOR, DEFAULT_SHAPE } from '@/bot/skins'
 import type { StateId } from '@/bot/states'
+import type { GlassesStyle } from '@/ui/glasses'
+import type { AccessoryLayout, MouthStyle, MustacheStyle } from '@/ui/accessories'
+import type { ExportBackground } from '@/ui/background'
 
 /**
  * Vignette cliquable de la barre de droite : un bot fige, son nom dessous, une
@@ -21,7 +24,22 @@ withDefaults(
     state?: StateId
     shape?: string
     color?: string
+    backdrop?: ExportBackground
     expression?: string
+    hands?: boolean
+    glasses?: boolean
+    showEyesWithGlasses?: boolean
+    glassesColor?: string
+    eyeColor?: string
+    glassesStyle?: GlassesStyle
+    glassesSize?: number
+    mustache?: boolean
+    mustacheColor?: string
+    mustacheStyle?: MustacheStyle
+    mouth?: boolean
+    mouthColor?: string
+    mouthStyle?: MouthStyle
+    accessoryLayout?: AccessoryLayout
     size?: number
   }>(),
   {
@@ -29,6 +47,24 @@ withDefaults(
     shape: DEFAULT_SHAPE,
     color: DEFAULT_COLOR,
     expression: DEFAULT_EXPRESSION,
+    hands: false,
+    glasses: false,
+    showEyesWithGlasses: false,
+    glassesColor: '#202028',
+    eyeColor: '#f9f9f9',
+    glassesStyle: 'sun',
+    glassesSize: 1,
+    mustache: false,
+    mustacheColor: '#75452d',
+    mustacheStyle: 'classic',
+    mouth: false,
+    mouthColor: '#c96c73',
+    mouthStyle: 'smile',
+    accessoryLayout: () => ({
+      glasses: { x: 0, y: 0, width: 1, height: 1, rotation: 0, curve: 0, roundness: 0, lowerCurve: 0 },
+      mustache: { x: 0, y: 0, width: 1, height: 1, rotation: 0, curve: 0, roundness: 0, lowerCurve: 0 },
+      mouth: { x: 0, y: 0, width: 1, height: 1, rotation: 0, curve: 0, roundness: 0, lowerCurve: 0 },
+    }),
     size: 60
   }
 )
@@ -47,7 +83,22 @@ withDefaults(
       :size="size"
       :shape="shape"
       :color="color"
+      :backdrop="backdrop"
       :expression="expression"
+      :hands="hands"
+      :glasses="glasses"
+      :show-eyes-with-glasses="showEyesWithGlasses"
+      :glasses-color="glassesColor"
+      :eye-color="eyeColor"
+      :glasses-style="glassesStyle"
+      :glasses-size="glassesSize"
+      :mustache="mustache"
+      :mustache-color="mustacheColor"
+      :mustache-style="mustacheStyle"
+      :mouth="mouth"
+      :mouth-color="mouthColor"
+      :mouth-style="mouthStyle"
+      :accessory-layout="accessoryLayout"
       :frozen-at="frozenAt"
     />
     <!-- 12 px : en dessous, une legende n'est plus lisible pour tout le monde -->

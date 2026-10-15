@@ -124,8 +124,7 @@ describe('fluidite de l arrivee', () => {
    * `pendantMorph` restreint la mesure aux images qui suivent un changement
    * d'etat. C'est LA que se produisait la teleportation, et la seule fenetre ou un
    * grand deplacement est forcement un defaut : ailleurs il peut etre la
-   * trajectoire voulue — le tour du regard fait 20 px par image au passage du
-   * limbe, parce qu'un petit angle y devient un grand deplacement a l'ecran.
+   * trajectoire voulue du balayage horizontal.
    */
   function pireSaut(gaze: GazeScript | null = INTRO_GAZE, pendantMorph = false): number {
     const moteur = new BotEngine(100, INTRO[0]!.state, cercle, neutre)
@@ -181,50 +180,41 @@ describe('fluidite de l arrivee', () => {
     expect(new Set(INTRO.map((b) => b.state)).size).toBe(1)
   })
 
-  /*
-   * Pourquoi la boule est RONDE le temps du tour, quelle que soit la forme
-   * choisie (voir `forme` dans `App.vue`).
-   *
-   * Les yeux sont recolles au contour reel pour ne pas deborder de la silhouette
-   * (`radiusAtAngle`). Sur un cercle ce rayon est constant, donc le tour est
-   * lisse. Sur une forme non circulaire, ils suivent le profil et sautillent —
-   * c'est ce que ce test mesure, et c'est un constat, pas un defaut a corriger :
-   * `radiusAtAngle` fait exactement ce pour quoi il est la.
-   */
-  it('un tour sur une forme non circulaire ferait sautiller les yeux', () => {
-    /** Ordonnee de l'oeil interieur image par image, `NaN` quand il est cache. */
-    const trajectoire = (forme: string) => {
-      const m = new BotEngine(100, 'idle', SHAPE_BY_ID.get(forme)!.radii, neutre)
-      const ys: number[] = []
-      for (let t = 0; t < TOUR_TIME; t += IMAGE) {
-        m.setLook(INTRO_GAZE(t), t, IMAGE)
-        const e = m.sample(t).eyes[0]
-        if (!e) {
-          ys.push(NaN)
-          continue
-        }
-        ys.push(Number(/matrix\(([^)]+)\)/.exec(e.matrix)![1]!.split(',')[5]))
+  it('fait un tour complet, cache les yeux derriere la sphere puis les retrouve', () => {
+    const moteur = new BotEngine(100, 'idle', cercle, neutre)
+    moteur.setLook(INTRO_GAZE(0), 0, IMAGE)
+    const debut = moteur.sample(0).eyes
+    let balaye = debut[0]!.matrix
+    let yeuxCaches = false
+    for (let t = IMAGE; t <= TOUR_TIME; t += IMAGE) {
+      moteur.setLook(INTRO_GAZE(t), t, IMAGE)
+      const frame = moteur.sample(t)
+      if (frame.eyes.length === 0) yeuxCaches = true
+      if (Math.abs(t - TOUR_TIME / 10) < IMAGE && frame.eyes[0]) {
+        balaye = frame.eyes[0].matrix
       }
-      return ys
     }
-
-    const rond = trajectoire('cercle')
-    const goutte = trajectoire('goutte')
-    let ecart = 0
-    for (let i = 0; i < rond.length; i++) {
-      if (Number.isNaN(rond[i]!) || Number.isNaN(goutte[i]!)) continue
-      ecart = Math.max(ecart, Math.abs(goutte[i]! - rond[i]!))
-    }
-    // sur une boule de 100 de rayon : des dizaines de px, pas un ou deux
-    expect(ecart, `${ecart.toFixed(1)} px d ecart vertical avec le cercle`).toBeGreaterThan(15)
+    expect(yeuxCaches).toBe(true)
+    expect(moteur.sample(TOUR_TIME).eyes).toHaveLength(2)
+    expect(balaye).not.toBe(debut[0]!.matrix)
   })
 
-  it('fait bien parcourir un tour aux yeux', () => {
-    // le tour est le seul mouvement de l'arrivee : s'il disparaissait, il ne
-    // resterait qu'un fondu et plus personne ne s'en apercevrait ici
-    const avec = pireSaut(INTRO_GAZE)
-    const sans = pireSaut(null)
-    expect(sans, 'sans script, seule la derive au repos bouge').toBeLessThan(1)
-    expect(avec, 'le tour passe le limbe, donc il va vite a cet instant').toBeGreaterThan(5)
+  it('termine un tour complet sur la pose initiale', () => {
+    expect(INTRO_GAZE(0).yawOffset).toBe(0)
+    expect(INTRO_GAZE(TOUR_TIME).yawOffset).toBe(360)
+    const depart = new BotEngine(100, 'idle', cercle, neutre)
+    const arrivee = new BotEngine(100, 'idle', cercle, neutre)
+    depart.setLook(INTRO_GAZE(0), 0)
+    arrivee.setLook(INTRO_GAZE(TOUR_TIME), 0)
+    const pose = new BotEngine(100, 'idle', cercle, neutre).sample(1).eyes[0]!.matrix
+    const fin = arrivee.sample(1).eyes[0]!.matrix
+    const valeurs = (matrix: string) => matrix.slice(7, -1).split(',').map(Number)
+    for (const [i, value] of valeurs(fin).entries()) {
+      expect(value).toBeCloseTo(valeurs(pose)[i]!, 4)
+    }
+    const cote = new BotEngine(100, 'idle', cercle, neutre)
+    cote.setLook(INTRO_GAZE(TOUR_TIME / 10), 0)
+    expect(cote.sample(1).eyes[0]!.matrix).not.toBe(pose)
   })
+
 })

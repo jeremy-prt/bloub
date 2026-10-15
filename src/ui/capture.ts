@@ -15,6 +15,9 @@ import BloubBot from '@/components/BloubBot.vue'
 import type { Block } from '@/bot/cycles'
 import { gifAnime, gifIndexe, indexe, nouvellePalette, recense, svgAnime } from './anime'
 import { arrete, DEMI_ECRAN, sansCommentaires, viewBoxExport } from './export'
+import type { GlassesStyle } from './glasses'
+import type { AccessoryLayout, MouthStyle, MustacheStyle } from './accessories'
+import type { ExportBackground } from './background'
 
 /**
  * Serialise le SVG affiche en un document autonome, recadre sur la boule.
@@ -23,7 +26,11 @@ import { arrete, DEMI_ECRAN, sansCommentaires, viewBoxExport } from './export'
  * dimension intrinseque, Firefox refuse de rasteriser un SVG charge dans une
  * `<img>`, et le canvas ressort vide.
  */
-export function svgAutonome(svg: SVGSVGElement, taille: number, viewBox = viewBoxExport()) {
+export function svgAutonome(
+  svg: SVGSVGElement,
+  taille: number,
+  viewBox = viewBoxExport()
+) {
   const clone = svg.cloneNode(true) as SVGSVGElement
   // Les classes Tailwind de la page n'existent pas dans le fichier livre.
   clone.removeAttribute('class')
@@ -31,6 +38,18 @@ export function svgAutonome(svg: SVGSVGElement, taille: number, viewBox = viewBo
   clone.setAttribute('viewBox', viewBox)
   clone.setAttribute('width', String(taille))
   clone.setAttribute('height', String(taille))
+  const backgroundFrame = clone.querySelector<SVGRectElement>('[data-background-frame]')
+  if (backgroundFrame) {
+    const [x, y, width, height] = viewBox.trim().split(/\s+/).map(Number)
+    if (![x, y, width, height].every(Number.isFinite)) {
+      throw new Error('viewBox SVG invalide pour le fond')
+    }
+    backgroundFrame.setAttribute('x', String(x))
+    backgroundFrame.setAttribute('y', String(y))
+    backgroundFrame.setAttribute('width', String(width))
+    backgroundFrame.setAttribute('height', String(height))
+    backgroundFrame.setAttribute('rx', String(Math.min(width!, height!) * 0.032))
+  }
   return sansCommentaires(new XMLSerializer().serializeToString(clone))
 }
 
@@ -42,8 +61,8 @@ export function svgAutonome(svg: SVGSVGElement, taille: number, viewBox = viewBo
  * long. L'URL est relachee dans un `finally` — un objet non revoque tient le blob
  * en memoire jusqu'au rechargement de la page.
  *
- * Le canvas n'est jamais souille : le SVG du bot n'a ni `<foreignObject>` ni
- * `<image>`, les deux seules choses qui feraient echouer `toBlob`.
+ * Les images de fond sont embarquees en `data:` URL : le SVG reste de meme origine
+ * et le canvas peut etre exporte sans etre souille.
  */
 async function dessine(
   markup: string,
@@ -151,11 +170,12 @@ export async function cycleVersMp4(
   pas: number,
   fond: string,
   avance?: Avancement,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  backgroundImage?: ExportBackground
 ): Promise<Blob> {
   const { versMp4 } = await import('./video')
   const canvas = document.createElement('canvas')
-  const lecteur = await ouvreCycle(reglages, blocs, taille, fond)
+  const lecteur = await ouvreCycle(reglages, blocs, taille, fond, backgroundImage)
   try {
     return await versMp4(
       canvas,
@@ -163,7 +183,12 @@ export async function cycleVersMp4(
       Math.round(1 / pas),
       async (i) => {
         const svg = await lecteur.rendre(i * pas)
-        await dessine(svgAutonome(svg, taille, viewBoxExport(DEMI_ECRAN)), taille, canvas, fond)
+        await dessine(
+          svgAutonome(svg, taille, viewBoxExport(DEMI_ECRAN)),
+          taille,
+          canvas,
+          fond
+        )
       },
       avance,
       signal
@@ -200,13 +225,14 @@ export async function cycleVersGif(
   pas: number,
   fond: string | null,
   avance?: Avancement,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  backgroundImage?: ExportBackground
 ): Promise<Blob> {
   // Un seul canvas et un seul lecteur pour les deux passes : le canvas est reinitialise a
   // chaque image, et le lecteur sait rembobiner.
   const canvas = document.createElement('canvas')
   const vue = viewBoxExport(DEMI_ECRAN)
-  const lecteur = await ouvreCycle(reglages, blocs, taille, fond ?? undefined)
+  const lecteur = await ouvreCycle(reglages, blocs, taille, fond ?? undefined, backgroundImage)
 
   /** Une passe complete sur la sequence. */
   const passe = async (lis: (index: number, pixels: Uint8ClampedArray) => void) => {
@@ -215,7 +241,12 @@ export async function cycleVersGif(
       // images, et l'abandon ne doit pas attendre la fin d'une passe
       arrete(signal)
       const svg = await lecteur.rendre(i * pas)
-      const ctx = await dessine(svgAutonome(svg, taille, vue), taille, canvas, fond)
+      const ctx = await dessine(
+        svgAutonome(svg, taille, vue),
+        taille,
+        canvas,
+        fond
+      )
       lis(i, ctx.getImageData(0, 0, taille, taille).data)
     }
   }
@@ -246,6 +277,21 @@ export interface ReglagesBot {
   shape: string
   color: string
   expression: string
+  glasses?: boolean
+  showEyesWithGlasses?: boolean
+  glassesColor?: string
+  eyeColor?: string
+  glassesStyle?: GlassesStyle
+  glassesSize?: number
+  mustache?: boolean
+  mustacheColor?: string
+  mustacheStyle?: MustacheStyle
+  mouth?: boolean
+  mouthColor?: string
+  mouthStyle?: MouthStyle
+  accessoryLayout?: AccessoryLayout
+  hands?: boolean
+  turnEyes?: boolean
 }
 
 /**
@@ -272,7 +318,8 @@ export async function sequenceDuBot<T>(
    * export a fond plein elle doit valoir exactement celle du fond — sinon
    * l'ancienne teinte du site reste visible dedans, en anneau plus sombre.
    */
-  paper?: string
+  paper?: string,
+  backgroundImage?: ExportBackground
 ): Promise<T[]> {
   const hote = document.createElement('div')
   // hors du flux et hors de vue, mais RENDU : un `display:none` ne donnerait pas
@@ -283,7 +330,13 @@ export async function sequenceDuBot<T>(
   const date = ref(0)
   const app = createApp({
     render: () =>
-      h(BloubBot, { ...reglages, size: taille, frozenAt: date.value, ...(paper ? { paper } : {}) })
+      h(BloubBot, {
+        ...reglages,
+        size: taille,
+        frozenAt: date.value,
+        ...(paper ? { paper } : {}),
+        ...(backgroundImage ? { backdrop: backgroundImage } : {})
+      })
   })
   app.mount(hote)
 
@@ -325,7 +378,8 @@ export async function ouvreCycle(
   reglages: ReglagesBot,
   blocs: Block[],
   taille: number,
-  paper?: string
+  paper?: string,
+  backgroundImage?: ExportBackground
 ): Promise<LecteurHorsEcran> {
   const hote = document.createElement('div')
   hote.style.cssText = 'position:fixed;left:-99999px;top:0;width:0;height:0;overflow:hidden'
@@ -350,7 +404,8 @@ export async function ouvreCycle(
         state: blocs[0]?.state ?? 'idle',
         frozenAt: 0,
         ref: bot,
-        ...(paper ? { paper } : {})
+        ...(paper ? { paper } : {}),
+        ...(backgroundImage ? { backdrop: backgroundImage } : {})
       })
   })
   app.mount(hote)
@@ -383,27 +438,39 @@ export async function ouvreCycle(
  * n'en a pas — donc l'ordre du document suffit a les identifier.
  */
 function matricesDesYeux(svg: SVGSVGElement) {
-  return [...svg.querySelectorAll('mask [transform]')].map((e) => e.getAttribute('transform')!)
+  const yeux = [...svg.querySelectorAll('mask [transform]')]
+  const yeuxColores = [...svg.querySelectorAll('[data-eye-color][transform]')]
+  const lunettes = [...svg.querySelectorAll('[data-glass-lens][transform]')]
+  const accessoires = [...svg.querySelectorAll('[data-accessory-part][transform]')]
+  return [...yeux, ...yeuxColores, ...lunettes, ...accessoires].map((e) => e.getAttribute('transform')!)
 }
 
 /**
  * Assemble l'animation du bot en un SVG anime.
  *
- * Le corps est celui de la premiere image et n'est pas anime : au repos la
- * silhouette ne se deplace que de 1,17 unite sur un rayon de 100, soit environ un
- * pixel et demi. Tout le mouvement est dans les yeux.
+ * Le moteur fournit chaque image cle. Si le tour complet est active, la
+ * projection du corps et l'opacite du visage font partie des valeurs animees.
  */
 export async function versSvgAnime(
   reglages: ReglagesBot,
   taille: number,
   nombre: number,
-  pas: number
+  pas: number,
+  backgroundImage?: ExportBackground
 ): Promise<Blob> {
   let base = ''
-  const matrices = await sequenceDuBot(reglages, taille, nombre, pas, (svg, i) => {
-    if (i === 0) base = svgAutonome(svg, taille)
-    return matricesDesYeux(svg)
-  })
+  const matrices = await sequenceDuBot(
+    reglages,
+    taille,
+    nombre,
+    pas,
+    (svg, i) => {
+      if (i === 0) base = svgAutonome(svg, taille)
+      return matricesDesYeux(svg)
+    },
+    undefined,
+    backgroundImage
+  )
   const markup = svgAnime(base, matrices, +((nombre - 1) * pas).toFixed(3))
   return new Blob([markup], { type: 'image/svg+xml' })
 }
@@ -421,7 +488,8 @@ export async function versGifAnime(
   taille: number,
   nombre: number,
   pas: number,
-  fond: string | null = null
+  fond: string | null = null,
+  backgroundImage?: ExportBackground
 ): Promise<Blob> {
   // Un seul canvas pour toute la sequence : en creer un par image laisse des
   // dizaines de contextes au ramasse-miettes pendant l'export.
@@ -432,11 +500,17 @@ export async function versGifAnime(
     nombre,
     pas,
     async (svg) => {
-      const ctx = await dessine(svgAutonome(svg, taille), taille, canvas, fond)
+      const ctx = await dessine(
+        svgAutonome(svg, taille),
+        taille,
+        canvas,
+        fond
+      )
       return ctx.getImageData(0, 0, taille, taille).data
     },
     // les yeux prennent la teinte du fond pour s'y fondre exactement
-    fond ?? undefined
+    fond ?? undefined,
+    backgroundImage
   )
   return new Blob([gifAnime(images, taille, taille, Math.round(pas * 1000))], { type: 'image/gif' })
 }

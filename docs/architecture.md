@@ -208,7 +208,7 @@ The catalogues (`states.ts`, `skins.ts`, `expressions.ts`) carry **ids**, and th
 display resolves `t('states.orbit')`. The corollary is that their ids are
 **literal unions** (`ShapeId`, `ColorId`, `ExpressionId`, `StateId`), not for
 neatness, but because that is what makes the compiler check that every entry has
-its label in all three languages. Adding a shape without its label doesn't
+its label in all four languages. Adding a shape without its label doesn't
 compile.
 
 There used to be one exception, `StateDef.hint`: a hardcoded French string per state that
@@ -221,38 +221,28 @@ It's the entry transition for the settings view, chosen rather than measured (li
 `--ink`). It sits deliberately **outside `SEQUENCE`** (so it appears in neither
 the palette nor the board, and a test locks that) and carries both `baseBody` and
 `baseFace`, which is what lets it morph from the user's chosen shape towards the
-ball and lets gaze tracking apply from its very first frame.
+ball while preserving its own animated gaze.
 
 ## `Look` aims in absolute terms, and the engine does the mixing
 
-`yaw` and `pitch` replace the pose's own as `mix` rises, and that mix has to be
-done by the engine because only it knows the pose *at instant t*. A caller
-compensating for the expression's orientation would read its **arrival** value
-while the morph was still running, and the eyes would jump on every mood change.
+`yaw` and `pitch` replace the pose's own as `mix` rises. The engine does that
+mixing because only it knows the pose *at instant t*. The gaze sweep leaves
+`mix` at zero, so each state's original pose and movement remain in control.
 
-It also has to be absolute on **both** axes. In relative terms the eye height
-followed each expression's own, and "neutral" looks about 30° higher than the
-others, so the eyes dropped all at once on the first mood change. What
-distinguishes a mood during tracking is the **shape** of its eyes, not where it
-looks.
+`yawOffset` adds a horizontal 3D turn to the gaze without changing pitch or
+roll. The optional sweep moves only the eyes: the body, decorations, accessories
+and independent hands remain stationary. Its pure time function drives both the
+live view and frame-by-frame export. The hands are separate, slightly rounded
+rectangles with no arms, and keep the same position throughout the eye sweep.
 
-`spin` is a turn taken *on the way*: free on a sphere, and with no effect on the
-destination since -360° is the same angle as 0.
-
-**`mix` and `wander` are not the same thing.** `mix` says how much the outside
-world commands the direction; `wander` is what remains of automatic drift. When
-the pointer moves, the drift must die out: added together, the bot would look
-like it was hunting for the cursor without ever holding it. But with **no** pointer
-(arriving by keyboard, by touch, or the mouse having left the window) the head must
-stay turned *and* keep living. Conflating them froze the gaze the moment the view
-opened. So drift is added **after** the mix, otherwise the target would cancel it
-along with the pose.
+**`mix` and `wander` are not the same thing.** `mix` says how much a gaze script
+commands the direction; `wander` is what remains of automatic drift. A sweep can
+leave that drift active, so the eyes keep their natural movement. Drift is added
+**after** the mix, otherwise a fixed target would cancel it along with the pose.
 
 **`setLook` refuses a non-finite target.** The engine keeps the last one: a `NaN`
-set even once takes up residence and the bot never rests again. This happened for
-real: a `getBoundingClientRect` on a zero-sized box (hidden browser pane) gives
-`0 / 0` in the caller. The caller is fixed, but the engine shouldn't depend on its
-callers being careful.
+set even once takes up residence and the bot never rests again. The engine
+validates every target so a bad script value cannot poison later frames.
 
 ## Colours: two blacks that don't move together
 

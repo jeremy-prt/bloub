@@ -20,7 +20,7 @@ import {
 /**
  * Les identifiants sont enumeres plutot que deduits du tableau : c'est ce qui
  * permet a la couche i18n de verifier A LA COMPILATION que chaque forme a bien
- * sa traduction dans les trois langues (`t(\`shapes.${id}\`)` ne compile que si
+ * sa traduction dans toutes les langues (`t(\`shapes.${id}\`)` ne compile que si
  * la cle existe). Un `as const` sur le tableau aurait le meme effet mais
  * rendrait `radii` en lecture seule, alors que le moteur le passe tel quel.
  */
@@ -133,6 +133,20 @@ export const COLORS: BotColor[] = [
 
 export const COLOR_BY_ID = new Map<string, BotColor>(COLORS.map((c) => [c.id, c]))
 export const DEFAULT_COLOR = 'encre'
+
+/**
+ * Une couleur peut aussi venir du selecteur libre du personnalisateur. On garde
+ * le format hexadecimal strict : il est sans danger pour le SVG, le stockage et
+ * les noms de fichiers d'export.
+ */
+export function isColor(value: string): boolean {
+  return COLOR_BY_ID.has(value) || /^#[0-9a-f]{6}$/i.test(value)
+}
+
+/** Resolve un nom de palette ou une couleur libre vers sa valeur CSS. */
+export function colorHex(value: string): string {
+  return COLOR_BY_ID.get(value)?.hex ?? (isColor(value) ? value : '#0a0a0c')
+}
 
 /** Melange deux couleurs hex. Sert a la brume de profondeur des particules. */
 export function mixHex(from: string, to: string, t: number): string {

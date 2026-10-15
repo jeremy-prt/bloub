@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import BotTile from '@/components/BotTile.vue'
 import Customizer from '@/components/Customizer.vue'
 import BloubBot from '@/components/BloubBot.vue'
+import AccessoryLayoutEditor from '@/components/AccessoryLayoutEditor.vue'
 import ExportBar from '@/components/ExportBar.vue'
 import CycleDialog from '@/components/CycleDialog.vue'
 import GifDialog from '@/components/GifDialog.vue'
@@ -42,6 +43,7 @@ import {
   type FormatCycle
 } from '@/ui/export'
 import { HUMEURS } from '@/ui/gaze'
+import { DEFAULT_EXPORT_BACKGROUND, type ExportBackground } from '@/ui/background'
 import { INTRO, INTRO_GAZE, POSE_AT, introDue } from '@/ui/intro'
 import { ecris, lis, type NomStocke } from '@/ui/stockage'
 import {
@@ -54,8 +56,21 @@ import {
   type Cycle
 } from '@/bot/cycles'
 import { DEFAULT_EXPRESSION, EXPRESSION_BY_ID } from '@/bot/expressions'
-import { COLOR_BY_ID, DEFAULT_COLOR, DEFAULT_SHAPE, SHAPE_BY_ID } from '@/bot/skins'
+import { DEFAULT_COLOR, DEFAULT_SHAPE, isColor, SHAPE_BY_ID } from '@/bot/skins'
 import { POSES, SEQUENCE, STATES, type StateId } from '@/bot/states'
+import { isGlassesStyle, type GlassesStyle } from '@/ui/glasses'
+import {
+  isMouthStyle,
+  isMustacheStyle,
+  parseAccessoryLayouts,
+  parseAccessoryEyesByShape,
+  DEFAULT_ACCESSORY_LAYOUT,
+  type ResolvedAccessoryBlockSettings,
+  type AccessoryLayout,
+  type AccessoryLayouts,
+  type MouthStyle,
+  type MustacheStyle
+} from '@/ui/accessories'
 
 /**
  * L'URL pilote la vue : `#etat=orbit&stop` ouvre un etat precis sequence a
@@ -318,8 +333,7 @@ window.addEventListener('hashchange', () => {
  * Hors du lecteur on ne regarde pas la sequence : on retombe sur l'etat de repos
  * et on suspend l'enchainement. L'horloge, elle, continue de tourner — le regard
  * derive et les yeux clignent toujours, ce qui garde le bot vivant sans empecher
- * de juger la forme, et c'est aussi ce qui laisse le regard suivre le curseur
- * dans les reglages.
+ * de juger la forme.
  */
 /*
  * Le lecteur s'ouvre A L'ARRET : arriver sur l'onglet, ce n'est pas demander a
@@ -347,10 +361,8 @@ const REST = [makeBlock('idle')]
 /**
  * Entree dans les reglages : le tourbillon, puis le repos.
  *
- * `swirl` porte le visage de repos, donc le suivi du curseur s'applique des la
- * premiere image et les yeux tournent d'un tour complet pour venir se poser a
- * gauche (voir `src/ui/gaze.ts`). Le bloc de repos qui suit reprend exactement la
- * meme pose : la reprise ne se voit pas.
+ * `swirl` porte le visage de repos et anime lui-meme le regard. Le bloc de repos
+ * qui suit reprend exactement la meme pose : la reprise ne se voit pas.
  */
 const ENTREE = [makeBlock('swirl'), makeBlock('idle')]
 /**
@@ -439,20 +451,149 @@ const droite = computed(() => !nue.value && view.value !== 'reglages')
 /* ------------------------------------------------------------------- skins */
 
 const shape = ref(stored('forme', DEFAULT_SHAPE, (v) => SHAPE_BY_ID.has(v)))
-const color = ref(stored('couleur', DEFAULT_COLOR, (v) => COLOR_BY_ID.has(v)))
+const color = ref(stored('couleur', DEFAULT_COLOR, isColor))
+const exportBackground = ref<ExportBackground>({ ...DEFAULT_EXPORT_BACKGROUND })
+const turnEyes = ref(lis('giro') === 'si')
+const hands = ref(lis('manos') === 'si')
+const glasses = ref(lis('lentes') === 'si')
+const glassesColor = ref(stored('colorLentes', '#202028', isColor))
+const eyeColor = ref(stored('colorOjos', '#f9f9f9', isColor))
+const eyesVisibleByShape = ref(parseAccessoryEyesByShape(lis('ojosConGafas')))
+const showEyesWithGlasses = computed<boolean>({
+  get: () => eyesVisibleByShape.value[shape.value] ?? false,
+  set: (visible) => {
+    eyesVisibleByShape.value = { ...eyesVisibleByShape.value, [shape.value]: visible }
+  }
+})
+const storedGlassesStyle = lis('tipoLentes')
+const glassesStyle = ref<GlassesStyle>(
+  storedGlassesStyle && isGlassesStyle(storedGlassesStyle) ? storedGlassesStyle : 'sun'
+)
+const glassesSize = ref(
+  Math.min(1.45, Math.max(0.65, Number(lis('tamanoLentes')) || 1))
+)
+const mustache = ref(lis('bigote') === 'si')
+const mustacheColor = ref(stored('colorBigote', '#75452d', isColor))
+const storedMustacheStyle = lis('tipoBigote')
+const mustacheStyle = ref<MustacheStyle>(
+  storedMustacheStyle && isMustacheStyle(storedMustacheStyle) ? storedMustacheStyle : 'classic'
+)
+const mouth = ref(lis('boca') === 'si' && lis('bigote') !== 'si')
+const mouthColor = ref(stored('colorBoca', '#c96c73', isColor))
+const storedMouthStyle = lis('tipoBoca')
+const mouthStyle = ref<MouthStyle>(
+  storedMouthStyle && isMouthStyle(storedMouthStyle) ? storedMouthStyle : 'smile'
+)
+const selectedAccessory = ref<'glasses' | 'mustache' | 'mouth' | null>(
+  glasses.value ? 'glasses' : mustache.value ? 'mustache' : mouth.value ? 'mouth' : null
+)
+const accessoryLayouts = ref<AccessoryLayouts>(parseAccessoryLayouts(lis('accesorios')))
+const accessoryLayout = computed<AccessoryLayout>({
+  get: () => accessoryLayouts.value[shape.value] ?? accessoryLayouts.value['*'] ?? DEFAULT_ACCESSORY_LAYOUT,
+  set: (layout) => {
+    accessoryLayouts.value = { ...accessoryLayouts.value, [shape.value]: layout }
+  }
+})
+const activeAccessoryLayout = computed<AccessoryLayout>({
+  get: () =>
+    view.value === 'animations'
+      ? (cycle.value.blocks[block.value]?.accessoryLayouts?.[shape.value] ?? accessoryLayout.value)
+      : accessoryLayout.value,
+  set: (layout) => {
+    if (view.value !== 'animations') {
+      accessoryLayout.value = layout
+      return
+    }
+    cycles.value = cycles.value.map((current) =>
+      current.id !== cycle.value.id
+        ? current
+        : {
+            ...current,
+            blocks: current.blocks.map((item, index) =>
+              index !== block.value
+                ? item
+                : {
+                    ...item,
+                    accessoryLayouts: {
+                      ...item.accessoryLayouts,
+                      [shape.value]: layout
+                    }
+                  }
+            )
+          }
+    )
+  }
+})
+const activeAccessorySettings = computed<ResolvedAccessoryBlockSettings>({
+  get: () => {
+    const saved = cycle.value.blocks[block.value]?.accessorySettings?.[shape.value]
+    const mustacheEnabled = saved?.mustache?.enabled ?? mustache.value
+    const mouthEnabled = (saved?.mouth?.enabled ?? mouth.value) && !mustacheEnabled
+    return {
+      glasses: {
+        enabled: saved?.glasses?.enabled ?? glasses.value,
+        color: saved?.glasses?.color ?? glassesColor.value,
+        showEyes: saved?.glasses?.showEyes ?? showEyesWithGlasses.value
+      },
+      mustache: {
+        enabled: mustacheEnabled,
+        color: saved?.mustache?.color ?? mustacheColor.value
+      },
+      mouth: {
+        enabled: mouthEnabled,
+        color: saved?.mouth?.color ?? mouthColor.value
+      },
+    }
+  },
+  set: (settings) => {
+    cycles.value = cycles.value.map((current) =>
+      current.id !== cycle.value.id
+        ? current
+        : {
+            ...current,
+            blocks: current.blocks.map((item, index) =>
+              index !== block.value
+                ? item
+                : {
+                    ...item,
+                    accessorySettings: {
+                      ...item.accessorySettings,
+                      [shape.value]: settings
+                    }
+                  }
+            )
+          }
+    )
+  }
+})
 const expression = ref(
   stored('expression', DEFAULT_EXPRESSION, (v) => EXPRESSION_BY_ID.has(v))
 )
 
 watch(shape, (v) => ecris('forme', v))
 watch(color, (v) => ecris('couleur', v))
+watch(turnEyes, (v) => ecris('giro', v ? 'si' : 'no'))
+watch(hands, (v) => ecris('manos', v ? 'si' : 'no'))
+watch(glasses, (v) => ecris('lentes', v ? 'si' : 'no'))
+watch(glassesColor, (v) => ecris('colorLentes', v))
+watch(eyeColor, (v) => ecris('colorOjos', v))
+watch(eyesVisibleByShape, (v) => ecris('ojosConGafas', JSON.stringify(v)))
+watch(glassesStyle, (v) => ecris('tipoLentes', v))
+watch(glassesSize, (v) => ecris('tamanoLentes', String(v)))
+watch(mustache, (v) => ecris('bigote', v ? 'si' : 'no'))
+watch(mustacheColor, (v) => ecris('colorBigote', v))
+watch(mustacheStyle, (v) => ecris('tipoBigote', v))
+watch(mouth, (v) => ecris('boca', v ? 'si' : 'no'))
+watch(mouthColor, (v) => ecris('colorBoca', v))
+watch(mouthStyle, (v) => ecris('tipoBoca', v))
+watch(accessoryLayouts, (v) => ecris('accesorios', JSON.stringify(v)), { deep: true })
 watch(expression, (v) => ecris('expression', v))
 
 /**
  * Nom du produit, en capitales pour le grand mot du pied de page. PAS traduit —
  * c'est une marque. Les capitales sont un logotype propre a ce pied de page : en
  * prose le nom s'ecrit « bloub », tout en minuscules, et c'est cette forme que
- * portent `app.name` et `app.title` dans les trois locales. La constante est donc
+ * portent `app.name` et `app.title` dans toutes les locales. La constante est donc
  * ecrite ici plutot que tiree de `t('app.name')`, qui n'a pas la meme casse.
  */
 const NOM = 'BLOUB'
@@ -460,13 +601,12 @@ const NOM = 'BLOUB'
 /* ----------------------------------------------------------------- humeurs */
 
 /**
- * Dans les reglages, le bot change d'humeur de temps a autre pendant que ses yeux
- * suivent le curseur. C'est un vernis de page, PAS un reglage : l'expression
+ * Dans les reglages, le bot change d'humeur de temps a autre. C'est un vernis de
+ * page, PAS un reglage : l'expression
  * choisie par l'utilisateur n'est ni remplacee ni ecrite dans le stockage, on se
  * contente d'en jouer une autre le temps de la visite.
  *
- * Le choix des humeurs n'est pas affaire de gout : voir `HUMEURS` dans
- * `src/ui/gaze.ts`, qui explique le critere.
+ * Les expressions retenues ont un roulis nul pour ne pas pencher la tete.
  */
 
 /**
@@ -529,6 +669,7 @@ const bot = ref<InstanceType<typeof BloubBot> | null>(null)
 
 function onSeek(t: number) {
   const { index, elapsed: offset } = blockAt(cycle.value.blocks, t)
+  playing.value = false
   bot.value?.seek(index, offset)
 }
 
@@ -566,6 +707,7 @@ watch(nue, (encore, avant) => {
 const dialogueCycle = ref(false)
 const formatCycle = ref<FormatCycle>(FORMAT_CYCLE_DEFAUT)
 const fondCycle = ref<FondGif>(FOND_GIF_DEFAUT)
+const turnEyesCycle = ref(turnEyes.value)
 /** `null` tant qu'on n'encode pas ; sinon la fraction faite, pour la barre. */
 const avancementCycle = ref<number | null>(null)
 /**
@@ -595,7 +737,26 @@ async function exporteCycle() {
   const images = cycleImages(totalDuration(blocs), format)
   const pas = cyclePas(format)
   const taille = CYCLE_TAILLE[format]
-  const reglages = { shape: shape.value, color: color.value, expression: expression.value }
+  const reglages = {
+    shape: shape.value,
+    color: color.value,
+    expression: expression.value,
+    glasses: glasses.value,
+    showEyesWithGlasses: showEyesWithGlasses.value,
+    glassesColor: glassesColor.value,
+    eyeColor: eyeColor.value,
+    glassesStyle: glassesStyle.value,
+    glassesSize: glassesSize.value,
+    mustache: mustache.value,
+    mustacheColor: mustacheColor.value,
+    mustacheStyle: mustacheStyle.value,
+    mouth: mouth.value,
+    mouthColor: mouthColor.value,
+    mouthStyle: mouthStyle.value,
+    accessoryLayout: accessoryLayout.value,
+    hands: hands.value,
+    turnEyes: turnEyesCycle.value
+  }
   const suit = (fait: number, total: number) => (avancementCycle.value = fait / total)
 
   avancementCycle.value = 0
@@ -603,7 +764,17 @@ async function exporteCycle() {
     const mp4 = format === 'mp4'
     // La video n'a pas d'alpha : elle impose le blanc. Le GIF, lui, garde le choix.
     const fichier = mp4
-      ? await cycleVersMp4(reglages, blocs, taille, images, pas, BLANC, suit, controle.signal)
+      ? await cycleVersMp4(
+          reglages,
+          blocs,
+          taille,
+          images,
+          pas,
+          BLANC,
+          suit,
+          controle.signal,
+          exportBackground.value
+        )
       : await cycleVersGif(
           reglages,
           blocs,
@@ -612,7 +783,8 @@ async function exporteCycle() {
           pas,
           couleurDeFond(fondCycle.value),
           suit,
-          controle.signal
+          controle.signal,
+          exportBackground.value
         )
     telecharge(fichier, nomFichier(nomDeCycle(cycle.value), '', '', mp4 ? 'mp4' : 'gif'))
     dialogueCycle.value = false
@@ -637,7 +809,10 @@ function annuleCycle() {
  * bouton proposait de « reessayer » quelque chose qu'on n'avait pas encore demande.
  */
 watch(dialogueCycle, (ouverte) => {
-  if (ouverte) erreurCycle.value = false
+  if (ouverte) {
+    erreurCycle.value = false
+    turnEyesCycle.value = turnEyes.value
+  }
 })
 
 /** Duree d'affichage de la confirmation d'export. */
@@ -684,13 +859,57 @@ async function exporte(id: ActionId, confirme = false) {
     if (action.mode === 'anime') {
       // L'animation ne part PAS du SVG affiche : elle est rejouee depuis le debut
       // sur une instance hors ecran. Cf. `sequenceDuBot`.
-      const reglages = { shape: shape.value, color: color.value, expression: expression.value }
-      telecharge(await versSvgAnime(reglages, action.taille, ANIM_IMAGES, ANIM_PAS), nom())
+      const reglages = {
+        shape: shape.value,
+        color: color.value,
+        expression: expression.value,
+        glasses: glasses.value,
+        showEyesWithGlasses: showEyesWithGlasses.value,
+        glassesColor: glassesColor.value,
+        eyeColor: eyeColor.value,
+        glassesStyle: glassesStyle.value,
+        glassesSize: glassesSize.value,
+        mustache: mustache.value,
+        mustacheColor: mustacheColor.value,
+        mustacheStyle: mustacheStyle.value,
+        mouth: mouth.value,
+        mouthColor: mouthColor.value,
+        mouthStyle: mouthStyle.value,
+        accessoryLayout: accessoryLayout.value,
+        hands: hands.value,
+        turnEyes: turnEyes.value
+      }
+      telecharge(
+        await versSvgAnime(reglages, action.taille, ANIM_IMAGES, ANIM_PAS, exportBackground.value),
+        nom()
+      )
       etatExport.value = 'exporte'
     } else if (action.mode === 'gif') {
-      const reglages = { shape: shape.value, color: color.value, expression: expression.value }
+      const reglages = {
+        shape: shape.value,
+        color: color.value,
+        expression: expression.value,
+        glasses: glasses.value,
+        showEyesWithGlasses: showEyesWithGlasses.value,
+        glassesColor: glassesColor.value,
+        eyeColor: eyeColor.value,
+        glassesStyle: glassesStyle.value,
+        glassesSize: glassesSize.value,
+        mustache: mustache.value,
+        mustacheColor: mustacheColor.value,
+        mustacheStyle: mustacheStyle.value,
+        mouth: mouth.value,
+        mouthColor: mouthColor.value,
+        mouthStyle: mouthStyle.value,
+        accessoryLayout: accessoryLayout.value,
+        hands: hands.value,
+        turnEyes: turnEyes.value
+      }
       const fond = couleurDeFond(fondGif.value)
-      telecharge(await versGifAnime(reglages, action.taille, GIF_IMAGES, GIF_PAS, fond), nom())
+      telecharge(
+        await versGifAnime(reglages, action.taille, GIF_IMAGES, GIF_PAS, fond, exportBackground.value),
+        nom()
+      )
       etatExport.value = 'exporte'
     } else {
       const markup = svgAutonome(svg, action.taille)
@@ -753,7 +972,22 @@ watch(
           :size="210"
           :shape="shape"
           :color="color"
+          :backdrop="exportBackground"
           :expression="expression"
+          :hands="hands"
+          :glasses="glasses"
+          :show-eyes-with-glasses="showEyesWithGlasses"
+          :glasses-color="glassesColor"
+          :eye-color="eyeColor"
+          :glasses-style="glassesStyle"
+          :glasses-size="glassesSize"
+          :mustache="mustache"
+          :mustache-color="mustacheColor"
+          :mustache-style="mustacheStyle"
+          :mouth="mouth"
+          :mouth-color="mouthColor"
+          :mouth-style="mouthStyle"
+          :accessory-layout="accessoryLayout"
           :frozen-at="POSES[s.id]"
         />
         <figcaption class="text-xs text-[var(--muted)]">{{ t(`states.${s.id}`) }}</figcaption>
@@ -871,8 +1105,24 @@ watch(
             :size="preview ? 560 : 440"
             :shape="forme"
             :color="color"
+            :backdrop="exportBackground"
             :expression="humeur ?? expression"
-            :follow="view === 'reglages'"
+            :glasses="glasses"
+            :show-eyes-with-glasses="showEyesWithGlasses"
+            :glasses-color="glassesColor"
+            :eye-color="eyeColor"
+            :glasses-style="glassesStyle"
+            :glasses-size="glassesSize"
+            :mustache="mustache"
+            :mustache-color="mustacheColor"
+            :mustache-style="mustacheStyle"
+            :mouth="mouth"
+            :mouth-color="mouthColor"
+            :mouth-style="mouthStyle"
+            :hands="hands"
+            v-model:accessory-layout="activeAccessoryLayout"
+            @accessory-select="selectedAccessory = $event"
+            :turn-eyes="turnEyes && view === 'personnaliser'"
             :gaze="intro ? INTRO_GAZE : null"
           />
         </div>
@@ -907,7 +1157,7 @@ watch(
           :class="(nue || barreCachee) && 'barre-export--cachee'"
           :inert="nue || barreCachee"
         >
-          <ExportBar :etat="etatExport" @exporter="exporte" />
+          <ExportBar v-model:background="exportBackground" :etat="etatExport" @exporter="exporte" />
         </div>
 
         <!--
@@ -923,6 +1173,8 @@ watch(
           v-model:open="dialogueCycle"
           v-model:format="formatCycle"
           v-model:fond="fondCycle"
+          v-model:turn-eyes="turnEyesCycle"
+          v-model:backdrop="exportBackground"
           :avancement="avancementCycle"
           :erreur="erreurCycle"
           @confirm="exporteCycle"
@@ -935,6 +1187,7 @@ watch(
           v-if="view === 'personnaliser' && !preview"
           v-model:open="dialogueGif"
           v-model:fond="fondGif"
+          v-model:backdrop="exportBackground"
           @confirm="exporte('gif', true)"
         />
       </main>
@@ -944,26 +1197,54 @@ watch(
            (grille de 4 vignettes), le panneau d'animations s'y adapte. -->
       <aside
         v-if="!preview"
-        class="panneau scene__droite w-full lg:w-80 lg:shrink-0"
-        :class="droite ? 'panneau--ouvert max-lg:order-2' : 'max-lg:hidden'"
+        class="panneau scene__droite w-full lg:flex lg:h-[calc(100dvh_-_2rem)] lg:w-80 lg:shrink-0 lg:flex-col"
+        :class="[
+          droite ? 'panneau--ouvert max-lg:order-2' : 'max-lg:hidden',
+          view === 'animations' &&
+            'max-lg:flex max-lg:min-h-[calc(100dvh_-_var(--timeline)_-_6rem)] max-lg:flex-col lg:overflow-hidden'
+        ]"
       >
         <!-- palette : une vignette s'ajoute a la fin du montage -->
         <template v-if="view === 'animations'">
-          <h2 class="text-sm font-semibold">{{ t('panel.animations') }}</h2>
-          <div class="mt-2 grid grid-cols-4 gap-1.5">
-            <BotTile
-              v-for="s in order"
-              :key="s.id"
-              :label="t(`states.${s.id}`)"
-              :selected="s.id === state"
-              :state="s.id"
-              :shape="shape"
-              :color="color"
-              :expression="expression"
-              :frozen-at="POSES[s.id]"
-              @click="addBlock(s.id)"
-            />
+          <div class="min-h-0 flex-1 basis-0 overflow-y-auto">
+            <h2 class="text-sm font-semibold">{{ t('panel.animations') }}</h2>
+            <div class="mt-2 grid grid-cols-4 gap-1.5">
+              <BotTile
+                v-for="s in order"
+                :key="s.id"
+                :label="t(`states.${s.id}`)"
+                :selected="s.id === state"
+                :state="s.id"
+                :shape="shape"
+                :color="color"
+                :backdrop="exportBackground"
+                :expression="expression"
+                :hands="hands"
+                :glasses="glasses"
+                :show-eyes-with-glasses="showEyesWithGlasses"
+                :glasses-color="glassesColor"
+                :eye-color="eyeColor"
+                :glasses-style="glassesStyle"
+                :glasses-size="glassesSize"
+                :mustache="mustache"
+                :mustache-color="mustacheColor"
+                :mustache-style="mustacheStyle"
+                :mouth="mouth"
+                :mouth-color="mouthColor"
+                :accessory-layout="accessoryLayout"
+                :frozen-at="POSES[s.id]"
+                @click="addBlock(s.id)"
+              />
+            </div>
           </div>
+          <AccessoryLayoutEditor
+            class="mt-auto max-h-1/2 shrink-0 overflow-y-auto"
+            v-model:layout="activeAccessoryLayout"
+            v-model:settings="activeAccessorySettings"
+            v-model:selected-accessory="selectedAccessory"
+            :mouth-style="mouthStyle"
+            :mustache-style="mustacheStyle"
+          />
         </template>
 
         <!-- personnalisation -->
@@ -972,6 +1253,22 @@ watch(
             v-model:shape="shape"
             v-model:color="color"
             v-model:expression="expression"
+            v-model:glasses="glasses"
+            v-model:show-eyes-with-glasses="showEyesWithGlasses"
+            v-model:glasses-color="glassesColor"
+            v-model:eye-color="eyeColor"
+            v-model:glasses-style="glassesStyle"
+            v-model:glasses-size="glassesSize"
+            v-model:mustache="mustache"
+            v-model:mustache-color="mustacheColor"
+            v-model:mustache-style="mustacheStyle"
+            v-model:mouth="mouth"
+            v-model:mouth-color="mouthColor"
+            v-model:mouth-style="mouthStyle"
+            v-model:accessory-layout="accessoryLayout"
+            v-model:selected-accessory="selectedAccessory"
+            v-model:turn-eyes="turnEyes"
+            v-model:hands="hands"
           />
         </template>
       </aside>
@@ -998,9 +1295,23 @@ watch(
       :shape="shape"
       :color="color"
       :expression="expression"
+      :hands="hands"
+      :glasses="glasses"
+      :show-eyes-with-glasses="showEyesWithGlasses"
+      :glasses-color="glassesColor"
+      :eye-color="eyeColor"
+      :glasses-style="glassesStyle"
+      :glasses-size="glassesSize"
+      :mustache="mustache"
+      :mustache-color="mustacheColor"
+      :mustache-style="mustacheStyle"
+      :mouth="mouth"
+      :mouth-color="mouthColor"
+      :mouth-style="mouthStyle"
+      :accessory-layout="accessoryLayout"
       @seek="onSeek"
       @preview="preview = true"
-        @exporter="dialogueCycle = true"
+      @exporter="dialogueCycle = true"
     />
   </template>
 </template>

@@ -24,10 +24,8 @@
 
   /**
    * Duree et courbe du passage d'une vue a l'autre : le glissement de la scene et
-   * la croissance de la boule. Le tour du regard, lui, a sa propre duree
-   * (`TURN_TIME` de `src/ui/gaze.ts`), volontairement un peu plus longue — les
-   * yeux finissent de se poser apres que la boule a fini de grandir, ce qui fait
-   * lire les deux comme un seul mouvement qui se termine. Ease-out sans
+   * la croissance de la boule. Le balayage d'accueil, lui, a sa propre duree
+   * (`TOUR_TIME` de `src/ui/gaze.ts`) et revient a la pose choisie. Ease-out sans
    * depassement, comme tout le reste du projet.
    */
   --bascule: 1s cubic-bezier(0.22, 1, 0.36, 1);

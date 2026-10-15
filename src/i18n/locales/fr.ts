@@ -14,7 +14,7 @@
 export default {
   app: {
     /**
-     * Nom du produit. En minuscules dans les trois langues, ce n'est pas une
+     * Nom du produit. En minuscules dans toutes les langues, ce n'est pas une
      * coquille : les capitales de `NOM` (App.vue) sont un logotype, pas le nom.
      * Un nom propre ne se traduit pas non plus. `title` sert de `document.title`.
      * Voir aussi le <title> de index.html, qui est statique.
@@ -44,7 +44,108 @@ export default {
     animations: 'Animation',
     shape: 'Forme',
     expression: 'Expression',
-    color: 'Couleur'
+    color: 'Couleur',
+    rotateEyes: 'Yeux 3D',
+    addHands: 'Mains'
+  },
+
+  glasses: {
+    title: 'Lunettes',
+    add: 'Ajouter',
+    remove: 'Retirer',
+    style: 'Style',
+    size: 'Taille',
+    color: 'Couleur de la monture',
+    eyeColor: 'Couleur des yeux',
+    customEyeColor: 'Choisir une couleur des yeux',
+    showEyesWithGlasses: 'Afficher les yeux derrière les lunettes',
+    styles: {
+      round: 'Rondes',
+      square: 'Carrées',
+      aviator: 'Aviateur',
+      catEye: 'Œil-de-chat',
+      wayfarer: 'Wayfarer',
+      sun: 'Lunettes de soleil'
+    },
+    eyeColors: {
+      light: 'Clair',
+      brown: 'Marron',
+      hazel: 'Noisette',
+      green: 'Vert',
+      blue: 'Bleu',
+      gray: 'Gris',
+      violet: 'Violet',
+      dark: 'Foncé'
+    }
+  },
+
+  accessories: {
+    drag: 'Faites glisser chaque accessoire sur le visage',
+    blockTitle: 'Accessoires de cette animation',
+    blockHint: 'Ces réglages sont enregistrés sur le bloc sélectionné et le suivent dans le montage.',
+    enableItem: 'Activer {item} dans cette animation',
+    disableItem: 'Désactiver {item} dans cette animation',
+    itemColor: 'Couleur de {item} dans cette animation',
+    face: 'Moustache et bouche',
+    color: 'Couleur de l’accessoire',
+    positionX: 'Position horizontale',
+    positionY: 'Position verticale',
+    width: 'Larg.',
+    height: 'Haut.',
+    rotation: 'Inclinaison',
+    curve: 'Courbure',
+    roundness: 'Rondeur',
+    glassesWidth: 'Largeur des lunettes',
+    glassesHeight: 'Hauteur des lunettes',
+    glassesRotation: 'Inclinaison des lunettes',
+    leftLens: 'Verre gauche',
+    rightLens: 'Verre droit',
+    selectLens: 'Choisir le verre à régler',
+    leftLensX: 'Position horizontale du verre gauche',
+    leftLensY: 'Position verticale du verre gauche',
+    rightLensX: 'Position horizontale du verre droit',
+    rightLensY: 'Position verticale du verre droit',
+    mustache: 'Moustache',
+    mouth: 'Bouche',
+    addMouth: 'Ajouter une bouche',
+    removeMouth: 'Retirer la bouche',
+    mouthColor: 'Couleur de la bouche',
+    mouthWidth: 'Largeur de la bouche',
+    mouthHeight: 'Hauteur de la bouche',
+    mouthRotation: 'Inclinaison de la bouche',
+    mouthCurve: 'Courbure de la bouche',
+    mouthRoundness: 'Rondeur de la bouche',
+    mouthStyle: 'Forme de la bouche',
+    mouthStyles: {
+      smile: 'Sourire',
+      open: 'Ouverte',
+      pout: 'Lèvres pincées',
+      grin: 'Grand sourire',
+      frown: 'Triste',
+      smirk: 'Sourire en coin',
+      round: 'Ronde',
+      laugh: 'Rire ouvert'
+    },
+    addMustache: 'Ajouter une moustache',
+    removeMustache: 'Retirer la moustache',
+    mustacheStyle: 'Style de moustache',
+    mustacheColor: 'Couleur de la moustache',
+    mustacheWidth: 'Largeur de la moustache',
+    mustacheHeight: 'Hauteur de la moustache',
+    mustacheRotation: 'Inclinaison de la moustache',
+    mustacheCurve: 'Courbure de la moustache',
+    mustacheRoundness: 'Rondeur de la moustache',
+    mustacheStyles: {
+      classic: 'Classique',
+      chevron: 'Chevron',
+      handlebar: 'En guidon',
+      natural: 'Naturelle',
+      pencil: 'Fine',
+      walrus: 'Morse',
+      horseshoe: 'Fer à cheval',
+      imperial: 'Impériale',
+      toothbrush: 'Brosse'
+    },
   },
 
   /**
@@ -61,6 +162,8 @@ export default {
     anime: "Télécharger l'animation SVG",
     gif: 'Télécharger le GIF animé',
     cycleDetail: 'La vidéo est plus légère et plus fluide ; le GIF passe partout.',
+    cycleTurnEyes: 'Rotation 3D des yeux',
+    cycleTurnEyesHelp: 'Les yeux font un tour complet et passent derrière ; le corps reste immobile.',
     cycleFormat: 'Format',
     cycle_mp4: 'Vidéo MP4',
     cycle_mp4_aide: 'Léger et fluide, fond obligatoire',
@@ -69,6 +172,25 @@ export default {
     cycleProgress: 'Export en cours…',
     cycleReessayer: 'Réessayer',
     gifTitle: 'Télécharger le GIF animé',
+    background: 'Arrière-plan derrière le personnage',
+    backgroundHelp: 'Choisissez un fond transparent, uni, dégradé ou une photo.',
+    backgroundMode: "Type d'arrière-plan",
+    backgroundNone: 'Aucun fond',
+    backgroundColor: 'Couleur unie',
+    backgroundGradient: 'Dégradé',
+    backgroundPhoto: 'Photo',
+    backgroundSecondColor: 'Deuxième couleur',
+    backgroundDirection: 'Direction du dégradé',
+    directionHorizontal: 'De gauche à droite',
+    directionVertical: 'De haut en bas',
+    directionDiagonal: 'Diagonale descendante',
+    directionDiagonalReverse: 'Diagonale montante',
+    uploadBackground: 'Importer une photo',
+    changeBackground: 'Changer la photo',
+    removeBackground: "Retirer la photo d'arrière-plan",
+    backgroundTypeError: 'Choisissez une image PNG, JPG ou WebP.',
+    backgroundSizeError: "L'image doit peser moins de 10 Mo.",
+    backgroundLoadError: "L'image n'a pas pu être chargée.",
     gifDetail:
       "Le GIF ne gère la transparence qu'en tout ou rien : sans fond, le contour de la boule est un peu dur.",
     gifBackground: 'Fond',

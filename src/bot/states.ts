@@ -499,8 +499,7 @@ export const STATES: StateDef[] = [
      * catalogue, c'est une transition d'interface.
      */
     id: 'swirl',
-    // un peu plus que le tour du regard (`TURN_TIME`, 1,1 s) : les yeux doivent
-    // etre poses a gauche avant que les anneaux ne s'effacent
+    // duree choisie pour cette transition d'interface
     duration: 1.3,
     minDuration: 1.3,
     morph: 0.3,

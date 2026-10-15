@@ -6,6 +6,7 @@ import { formePlurielle, interpoler } from './format'
 import { choisirLangue, LANGUES, tagDe } from './langues'
 import fr from './locales/fr'
 import en from './locales/en'
+import es from './locales/es'
 import zh from './locales/zh'
 
 /**
@@ -14,12 +15,13 @@ import zh from './locales/zh'
  * navigateur. C'est precisement pour ca que la regle de choix de langue et la
  * mecanique de texte vivent dans des fichiers separes.
  */
-const DICTIONNAIRES = { fr, en, zh }
+const DICTIONNAIRES = { fr, en, es, zh }
 
 describe('choix de la langue au demarrage', () => {
   it('respecte le choix memorise, quelles que soient les preferences du navigateur', () => {
     expect(choisirLangue('en', ['fr-FR', 'fr'])).toBe('en')
     expect(choisirLangue('zh', ['fr-FR'])).toBe('zh')
+    expect(choisirLangue('es', ['fr-FR'])).toBe('es')
   })
 
   it('ignore un choix memorise qui n est pas une langue connue', () => {
@@ -31,6 +33,7 @@ describe('choix de la langue au demarrage', () => {
   it('suit l ordre des preferences du navigateur, pas leur simple presence', () => {
     expect(choisirLangue(null, ['zh-CN', 'en-US', 'fr'])).toBe('zh')
     expect(choisirLangue(null, ['en-US', 'zh-CN', 'fr'])).toBe('en')
+    expect(choisirLangue(null, ['es-MX', 'fr-FR'])).toBe('es')
   })
 
   it('reduit une etiquette complete a sa langue', () => {
@@ -52,8 +55,8 @@ describe('choix de la langue au demarrage', () => {
 
 describe('completude des dictionnaires', () => {
   /**
-   * La presence des cles est deja garantie a la compilation (`en` et `zh` sont
-   * types `typeof fr`). Ce qu'on verifie ici, c'est ce que le type ne voit pas :
+   * La presence des cles est deja garantie a la compilation (les autres locales
+   * sont typees `typeof fr`). Ce qu'on verifie ici, c'est ce que le type ne voit pas :
    * une valeur vide, ou une traduction restee en francais par oubli.
    */
   function feuilles(objet: object, prefixe = ''): Array<[string, string]> {
@@ -83,6 +86,13 @@ describe('completude des dictionnaires', () => {
         )
       }
     }
+  })
+
+  it('incluye traducciones españolas en los catálogos del avatar', () => {
+    expect(es.states.idle).toBe('En reposo')
+    expect(es.shapes.cercle).toBe('Círculo')
+    expect(es.colors.rouge).toBe('Rojo')
+    expect(es.expressions.hilare).toBe('Riendo a carcajadas')
   })
 
   it('couvre les quatre catalogues du bot, entree par entree', () => {
@@ -116,12 +126,13 @@ describe('pluriel', () => {
     expect(formePlurielle(gabarit, 0, 'en')).toBe('plusieurs')
   })
 
-  it('distingue un de deux dans les deux langues', () => {
+  it('distingue un de deux dans les langues à pluriel', () => {
     const gabarit = 'un | plusieurs'
-    for (const tag of ['fr', 'en']) {
+    for (const tag of ['fr', 'en', 'es']) {
       expect(formePlurielle(gabarit, 1, tag)).toBe('un')
       expect(formePlurielle(gabarit, 2, tag)).toBe('plusieurs')
     }
+    expect(formePlurielle(gabarit, 0, 'es')).toBe('plusieurs')
   })
 
   it('rend la forme unique quand la langue n a pas de pluriel', () => {
@@ -131,16 +142,17 @@ describe('pluriel', () => {
     }
   })
 
-  it('donne au chinois une seule forme, au francais et a l anglais deux', () => {
+  it('donne au chinois une seule forme et aux autres langues deux', () => {
     expect(zh.dialog.removeDetail.includes(' | ')).toBe(false)
     expect(fr.dialog.removeDetail.split(' | ')).toHaveLength(2)
     expect(en.dialog.removeDetail.split(' | ')).toHaveLength(2)
+    expect(es.dialog.removeDetail.split(' | ')).toHaveLength(2)
   })
 })
 
 describe('catalogue des langues', () => {
-  it('propose les trois langues, avec un drapeau et un endonyme', () => {
-    expect(LANGUES.map((l) => l.id)).toEqual(['fr', 'en', 'zh'])
+  it('propose les quatre langues, avec un drapeau et un endonyme', () => {
+    expect(LANGUES.map((l) => l.id)).toEqual(['fr', 'en', 'es', 'zh'])
     for (const l of LANGUES) {
       expect(l.emoji.length, l.id).toBeGreaterThan(0)
       expect(l.nom.trim(), l.id).not.toBe('')

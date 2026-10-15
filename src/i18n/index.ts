@@ -4,6 +4,7 @@ import { formePlurielle, interpoler } from './format'
 import { choisirLangue, estLangue, type Langue, tagDe } from './langues'
 import fr from './locales/fr'
 import en from './locales/en'
+import es from './locales/es'
 import zh from './locales/zh'
 
 export { LANGUES, type Langue } from './langues'
@@ -12,7 +13,7 @@ export { LANGUES, type Langue } from './langues'
  * `Record<Langue, typeof fr>` et pas un objet libre : ajouter une langue a
  * `LANGUES` sans ecrire son dictionnaire devient une erreur de compilation.
  */
-const dictionnaires: Record<Langue, typeof fr> = { fr, en, zh }
+const dictionnaires: Record<Langue, typeof fr> = { fr, en, es, zh }
 
 /**
  * Chemins pointes du dictionnaire. C'est ce type qui fait que `t('reglage.x')`

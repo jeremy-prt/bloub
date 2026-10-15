@@ -54,10 +54,9 @@ This works because the bot's SVG is already self-contained: no `var(--...)`, no
 Tailwind class, every shape carries its `fill` as a literal hex. Rebuilding a second
 render beside it would be a second source of drawing, and it would drift.
 
-Two things that make the raster safe: there is no `<foreignObject>` and no `<image>`,
-the only elements that would taint the canvas and break `toBlob`; and `width`/`height`
-are set explicitly, because without an intrinsic size Firefox refuses to rasterise an
-SVG loaded into an `<img>` and the canvas comes out empty.
+`width`/`height` are set explicitly, because without an intrinsic size Firefox refuses to
+rasterise an SVG loaded into an `<img>` and the canvas comes out empty. An uploaded
+background is embedded as a `data:` URL, so it does not taint the canvas.
 
 Measured on the output at 512²: 71.4 % transparent, 26.7 % body, 1.5 % `paper` for the
 eyes, the rest antialiasing.
@@ -66,7 +65,8 @@ eyes, the rest antialiasing.
 
 A paper-coloured `<path>` sits under the body (`BloubBot.vue`), so the exported image
 keeps light eyes on a dark background: real holes would make them disappear there.
-Don't "fix" this into transparency.
+Don't "fix" this into transparency. The selected background is behind the bot's opaque
+paper-coloured eye openings.
 
 ## The export frame is tighter than the screen's, and shared by all shapes
 
@@ -85,15 +85,22 @@ the motion is smooth at the display's refresh rate however few keyframes we emit
 the whole reason for this choice: an animated WebP was built first, measured, and dropped
 for being both choppier and 10× heavier (167 kB against 16 kB).
 
-**Only the eyes are animated, and that is measured.** At rest the silhouette moves by
+**The measured idle animation is mostly in the eyes.** At rest the silhouette moves by
 1.17 units on a radius of 100 over three seconds, about a pixel and a half at export
-size. So the body is emitted once, static, and all the weight of a bot animation is in its
-gaze. `liveliness` says the same thing in words: "toute la vie passe par le regard et les
-clignements".
+size. The optional horizontal eye sweep is captured alongside the eye and accessory
+matrices. The silhouette and separate hands remain unchanged.
 
 **The drawing is not rebuilt.** `svgAnime` takes the SVG `BloubBot` already rendered for
-the first keyframe and swaps each eye's `transform` attribute for an animated class. One
-source of drawing, same rule as the still export.
+the first keyframe and swaps the eye and accessory transforms for animated classes.
+One source of drawing, same rule as the still export.
+
+The background can be left transparent, set to a solid color, made into a two-color gradient,
+or use an uploaded PNG, JPEG or WebP photo (up to 10 MB). Gradients can run horizontally,
+vertically, or diagonally. The selected background sits behind the entire character with
+subtly rounded corners, and is carried by its SVG, so PNG, SVG, animated SVG, GIF and MP4
+all export the same composition.
+Uploaded photos remain embedded at their original resolution; raster formats render at
+their normal output resolution. Settings stay in memory until the page is reloaded.
 
 Three things that are not optional:
 
@@ -105,8 +112,8 @@ Three things that are not optional:
   loop would jump at the seam. Played forwards then backwards it rejoins itself exactly,
   and a blink in reverse is still a blink. This is the one thing the bitmap export could
   never have.
-- **The eyes are the only shapes in the mask carrying a `transform`** (the body has none),
-  which is what makes document order enough to identify them.
+- **The eye holes are the only transformed shapes inside the mask.** The character
+  projection lives outside the mask, so document order still identifies the eyes.
 
 Keyframes are emitted at 30/s: a keyframe is one matrix of text, so density is nearly free,
 and it follows the blink's asymmetric curve faithfully. Measured on the output: eye area
@@ -131,14 +138,18 @@ reason to exist. Everywhere else the animated SVG is better on every axis.
 ball's antialiased rim has to be thresholded at 50 %, which comes out as a staircase. A solid
 background smooths that rim back out because it has something to blend into, at the cost of
 baking the colour in. Neither choice wins everywhere, so a dialog offers both, white first
-(`GifDialog.vue`, native radios so the browser gives grouping and arrow keys). Exporting at
+(`GifDialog.vue`, native radios so the browser gives grouping and arrow keys). The
+white/transparent exterior-background choice remains available when no custom background
+is selected. A custom color, gradient or photo replaces it and is shared with the MP4 cycle
+export. Exporting at
 320 px while an avatar displays at 40-128 px softens the transparent edge further, since the
 browser's downscale re-smooths it.
 
-**With a background, the eyes must take its exact colour.** They are holes filled with
-`paper`, so left at the site's off-white they show up as a slightly darker ring inside a white
-frame. `sequenceDuBot` therefore passes the matte through as `paper`, measured: eyes at
-`255,255,255` on a white background against `249,249,249` on a transparent one.
+**With a solid exterior background, the eyes must take its exact colour.** They are holes
+filled with `paper`, so left at the site's off-white they show up as a slightly darker ring
+inside a white frame. `sequenceDuBot` therefore passes the matte through as `paper`,
+measured: eyes at `255,255,255` on a white background against `249,249,249` on a transparent
+one.
 
 `gifAnime` **deduces** transparency from the pixels rather than being told: flattened frames
 must not declare a transparent index, and above all must not be disposed to background between
@@ -208,9 +219,10 @@ colours, so a palette filled in encounter order would gorge itself on the first 
 antialiasing and dump every ring colour into one slot. Unseen colours resolve to the nearest
 kept entry, cached so each distinct colour costs one search.
 
-**Video is always opaque**: `VideoEncoder` refuses `alpha: 'keep'` for H.264 and VP9 alike,
-so the dialog offers a background choice for the GIF only, and doesn't show the group at all
-for MP4 rather than showing it disabled.
+**Video is always opaque**: `VideoEncoder` refuses `alpha: 'keep'` for H.264 and VP9 alike.
+MP4 is composited on white when no custom background is selected. The GIF keeps its
+white/transparent choice in that case. A selected color, gradient or photo is drawn behind
+the avatar in both formats.
 
 **Resolution and frame rate are per format, and mixing them up was a real bug.** The MP4 first
 inherited the GIF's 320 px / 20 fps, settings justified for the GIF by file weight, which a

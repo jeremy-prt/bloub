@@ -19,6 +19,31 @@ const MATRICES = [
   ['matrix(1,0,0,1,2,0)', 'matrix(1,0,0,1,12,0)']
 ]
 
+const AVEC_LUNETTES =
+  BASE.replace('</svg>', '<g data-glass-lens transform="matrix(1,0,0,1,0,0)"></g></svg>')
+const AVEC_IRIS = BASE.replace(
+  '</svg>',
+  '<path data-eye-color d="M0 0" transform="matrix(1,0,0,1,0,0)"/></svg>'
+)
+const AVEC_ACCESSOIRES = BASE.replace(
+  '</svg>',
+  '<g data-accessory-part transform="matrix(1,0,0,1,0,0)"></g>' +
+    '<g data-accessory-part transform="matrix(1,0,0,1,0,0)"></g></svg>'
+)
+const MATRICES_LUNETTES = MATRICES.map((image, i) => [
+  ...image,
+  `matrix(1,0,0,1,${i},2)`
+])
+const MATRICES_IRIS = MATRICES.map((image, i) => [
+  ...image,
+  `matrix(1,0,0,1,${i},3)`
+])
+const MATRICES_ACCESSOIRES = MATRICES.map((image, i) => [
+  ...image,
+  `matrix(1,0,0,1,${i},4)`,
+  `matrix(1,0,0,1,${i},5)`
+])
+
 describe('svg anime', () => {
   const sortie = svgAnime(BASE, MATRICES, 3)
 
@@ -52,6 +77,25 @@ describe('svg anime', () => {
     expect(sortie).toContain('transform-origin:0 0')
   })
 
+  it('anime aussi les lentilles pour qu elles suivent le regard', () => {
+    const sortie = svgAnime(AVEC_LUNETTES, MATRICES_LUNETTES, 3)
+    expect(sortie).toContain('class="lunette0"')
+    expect(sortie).toContain('@keyframes lunette0{0%{transform:matrix(1,0,0,1,0,2)}')
+    expect(sortie).toContain('.lunette0{animation-name:lunette0}')
+  })
+
+  it('anime la couleur des yeux sans decaler leur forme', () => {
+    const sortie = svgAnime(AVEC_IRIS, MATRICES_IRIS, 3)
+    expect(sortie).toContain('class="iris0"')
+    expect(sortie).toContain('@keyframes iris0{0%{transform:matrix(1,0,0,1,0,3)}')
+  })
+
+  it('anime les accessoires pour qu ils restent poses sur le visage', () => {
+    const sortie = svgAnime(AVEC_ACCESSOIRES, MATRICES_ACCESSOIRES, 3)
+    expect(sortie).toContain('class="accessoire0"')
+    expect(sortie).toContain('@keyframes accessoire1{0%{transform:matrix(1,0,0,1,0,5)}')
+  })
+
   /* La derive n'est pas periodique : sans `alternate`, le raccord sauterait. */
   it('reboucle en aller-retour pour ne pas montrer de raccord', () => {
     expect(sortie).toContain('animation-direction:alternate')
@@ -75,6 +119,8 @@ describe('svg anime', () => {
     expect(() => svgAnime('<svg></svg>', MATRICES, 3)).toThrow()
     // autant de matrices par image cle que d'yeux dans le masque
     expect(() => svgAnime(BASE, [['matrix(1,0,0,1,0,0)'], ['matrix(1,0,0,1,1,0)']], 3)).toThrow()
+    expect(() => svgAnime(AVEC_LUNETTES, MATRICES, 3)).toThrow()
+    expect(() => svgAnime(AVEC_IRIS, MATRICES, 3)).toThrow()
   })
 })
 

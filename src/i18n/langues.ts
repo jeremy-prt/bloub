@@ -16,6 +16,7 @@
 export const LANGUES = [
   { id: 'fr', tag: 'fr', emoji: '🇫🇷', nom: 'Français' },
   { id: 'en', tag: 'en', emoji: '🇬🇧', nom: 'English' },
+  { id: 'es', tag: 'es', emoji: '🇪🇸', nom: 'Español' },
   { id: 'zh', tag: 'zh-Hans', emoji: '🇨🇳', nom: '简体中文' }
 ] as const
 
