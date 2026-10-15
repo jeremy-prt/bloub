@@ -17,7 +17,12 @@ import { STATE_BY_ID, type Pose, type StateDef, type StateId } from './states'
 export interface RenderedEye {
   d: string
   matrix: string
+  frameMatrix: string
   alpha: number
+  x: number
+  y: number
+  width: number
+  height: number
 }
 
 export interface BotFrame {
@@ -33,8 +38,7 @@ export interface BotFrame {
 }
 
 /**
- * Ou le bot porte son regard quand quelque chose d'exterieur le pilote — le
- * pointeur de la souris, aujourd'hui.
+ * Cible optionnelle de regard, utilisee par les scripts d'animation.
  *
  * `yaw` et `pitch` sont des directions ABSOLUES, qui remplacent celles de la pose
  * a mesure que `mix` monte. Deux raisons, chacune un piege deja tombe :
@@ -46,39 +50,32 @@ export interface BotFrame {
  * - et il faut que ce soit absolu sur les DEUX axes. En relatif, la hauteur des
  *   yeux suivait celle de chaque expression — « neutre » regarde a +28,6deg quand
  *   les autres sont entre -9 et +9 — donc les yeux tombaient d'un coup au premier
- *   changement d'humeur. Ce qui fait le caractere d'une expression pendant le
- *   suivi, c'est la FORME de ses yeux (plisses, ronds, dissymetriques), pas
- *   l'endroit ou elle regarde : celui-la, c'est le curseur qui le decide.
+ *   changement d'humeur. La forme des yeux reste celle de l'expression.
  *
- * `mix` dit a quel point l'exterieur commande la DIRECTION (0 = pas du tout).
+ * `mix` dit a quel point la cible commande la DIRECTION (0 = pas du tout).
  *
  * `wander` dit, separement, ce qui reste de derive automatique. Les deux ne se
- * confondent pas : quand le pointeur bouge, la derive doit s'eteindre — cumulees,
- * le bot aurait l'air de chercher le curseur sans jamais le tenir. Mais quand il
- * n'y a PAS de pointeur (arrivee au clavier, au tactile, ou souris sortie de la
- * fenetre), la tete doit rester tournee ET continuer de vivre. Les confondre
- * figeait le regard des que la vue s'ouvrait.
+ * confondent pas : un script qui commande le regard peut couper la derive, tandis
+ * qu'un balayage peut la laisser vivre. Les confondre figerait l'animation.
  *
- * `spin` est un tour a parcourir EN CHEMIN, en degres, qu'on fait fondre vers 0
- * avec l'arrivee. Comme les yeux vivent sur une sphere, un tour les fait passer
- * derriere la boule et revenir de l'autre cote — et `-360deg` etant le meme
- * angle que `0`, il ne change rien a l'endroit ou ils se posent.
+ * `yawOffset` ajoute un mouvement gauche-droite a la visee, sans toucher au
+ * tangage ni au roulis.
  */
 export interface Look {
   yaw: number
   pitch: number
   mix: number
-  spin: number
+  yawOffset: number
   wander: number
 }
 
-const NO_LOOK: Look = { yaw: 0, pitch: 0, mix: 0, spin: 0, wander: 1 }
+const NO_LOOK: Look = { yaw: 0, pitch: 0, mix: 0, yawOffset: 0, wander: 1 }
 
 const lerpLook = (a: Look, b: Look, t: number): Look => ({
   yaw: lerp(a.yaw, b.yaw, t),
   pitch: lerp(a.pitch, b.pitch, t),
   mix: lerp(a.mix, b.mix, t),
-  spin: lerp(a.spin, b.spin, t),
+  yawOffset: lerp(a.yawOffset, b.yawOffset, t),
   wander: lerp(a.wander, b.wander, t)
 })
 
@@ -157,9 +154,8 @@ export class BotEngine {
 
   /**
    * Duree de rattrapage du regard vers la cible. Plus court que `SHAPE_MORPH` :
-   * un regard qui suit doit paraitre attentif, pas visqueux. Comme la cible est
-   * reposee a chaque mouvement de souris, c'est cette duree qui donne au suivi
-   * son inertie — le regard n'atteint jamais tout a fait un curseur qui bouge.
+   * un regard dirige doit paraitre attentif, pas visqueux. La cible est l'interpolation
+   * qui donne au mouvement son inertie.
    */
   static readonly LOOK_MORPH = 0.24
 
@@ -233,9 +229,8 @@ export class BotEngine {
    * Nouvelle cible de regard, `null` pour revenir a celui de l'etat.
    *
    * Elle repart de la valeur COURANTE, et non de la cible precedente comme
-   * `setShape` : cette methode est appelee a chaque mouvement de pointeur, et
-   * repartir de l'ancienne cible ferait reculer le regard d'un cran avant
-   * chaque rattrapage — le suivi tremblerait au lieu de glisser.
+   * `setShape` : repartir de l'ancienne cible ferait reculer le regard d'un cran
+   * avant chaque rattrapage au lieu de le faire glisser.
    *
    * Meme contrat que `setShape` par ailleurs : l'etat externe entre par un
    * setter horodate, jamais par une variable lue pendant `sample`, sinon le
@@ -250,7 +245,7 @@ export class BotEngine {
      * l'appelant. Celui-la est corrige, mais le moteur n'a pas a dependre de la
      * prudence de ses appelants pour rester rejouable.
      */
-    if (look && !Number.isFinite(look.yaw + look.pitch + look.mix + look.spin + look.wander)) {
+    if (look && !Number.isFinite(look.yaw + look.pitch + look.mix + look.yawOffset + look.wander)) {
       return
     }
     this.lookPrev = this.lookAtTime(now)
@@ -466,11 +461,11 @@ export class BotEngine {
       // Les deux visees REMPLACENT celles de la pose au lieu de s'y ajouter (voir
       // `Look`), et le tour se retranche en chemin. La derive s'ajoute APRES le
       // melange, sinon la cible l'annulerait en meme temps que la pose — or elle
-      // doit survivre a une tete tournee sans pointeur.
-      yaw: lerp(pose.gaze.yaw, look.yaw, look.mix) + life.dYaw - look.spin,
+      // doit survivre a une cible fixe.
+      yaw: lerp(pose.gaze.yaw, look.yaw, look.mix) + life.dYaw + look.yawOffset,
       pitch: lerp(pose.gaze.pitch, look.pitch, look.mix) + life.dPitch,
       // le roulis, lui, ne suit rien : la tete du bot est penchee de -13deg dans
-      // la video, et la faire rouler avec le curseur casse cette signature
+      // la video, et la faire rouler avec le regard casse cette signature
       roll: pose.gaze.roll + life.dRoll
     }
 
@@ -489,8 +484,8 @@ export class BotEngine {
       cy: pose.sil.cy + offY,
       sy: pose.sil.sy * life.breath
     }
-    const bodyPath = closedPath(toPoints(sil, R, this.pts))
-
+    const bodyPoints = toPoints(sil, R, this.pts)
+    const bodyPath = closedPath(bodyPoints)
     // --- yeux -------------------------------------------------------------
     // Les yeux vivent sur une sphere de rayon 1 ; des que la silhouette n'est
     // plus un cercle, on les ramene au prorata du rayon reel dans leur
@@ -522,7 +517,12 @@ export class BotEngine {
         eyes.push({
           d: capsulePath(cfg.w * R, cfg.h * R),
           matrix: `matrix(${r2(ax)},${r2(ay * k)},${r2(cx2)},${r2(cy2 * k)},${r2(e.x * fit + (offX + decalage.x) * R)},${r2(e.y * fit + (offY + decalage.y) * R)})`,
-          alpha: pose.eyeAlpha * clamp(e.depth / 0.12)
+          frameMatrix: `matrix(${r2(ax)},${r2(ay)},${r2(cx2)},${r2(cy2)},${r2(e.x * fit + (offX + decalage.x) * R)},${r2(e.y * fit + (offY + decalage.y) * R)})`,
+          alpha: pose.eyeAlpha * clamp(e.depth / 0.12),
+          x: e.x * fit + (offX + decalage.x) * R,
+          y: e.y * fit + (offY + decalage.y) * R,
+          width: cfg.w * R,
+          height: cfg.h * R
         })
       }
     }
@@ -555,4 +555,3 @@ export class BotEngine {
     }
   }
 }
-

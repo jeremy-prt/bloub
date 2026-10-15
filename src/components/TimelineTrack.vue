@@ -13,6 +13,8 @@ import {
 import { POSES, type StateId } from '@/bot/states'
 import { BASE_SCALE, clampZoom, ticksFor } from '@/ui/timeline'
 import { secondes, secondesCourtes, t } from '@/i18n'
+import type { GlassesStyle } from '@/ui/glasses'
+import type { AccessoryLayout, MouthStyle, MustacheStyle } from '@/ui/accessories'
 
 /**
  * La piste : une regle graduee, les cartes du montage, et les gestes qui vont
@@ -27,6 +29,20 @@ const props = defineProps<{
   shape: string
   color: string
   expression: string
+  hands: boolean
+  glasses: boolean
+  showEyesWithGlasses: boolean
+  glassesColor: string
+  eyeColor: string
+  glassesStyle: GlassesStyle
+  glassesSize: number
+  mustache: boolean
+  mustacheColor: string
+  mustacheStyle: MustacheStyle
+  mouth: boolean
+  mouthColor: string
+  mouthStyle: MouthStyle
+  accessoryLayout: AccessoryLayout
 }>()
 
 const emit = defineEmits<{
@@ -410,6 +426,20 @@ function onRulerMove(e: PointerEvent) {
                   :shape="shape"
                   :color="color"
                   :expression="expression"
+                  :hands="hands"
+                  :glasses="b.accessorySettings?.[shape]?.glasses?.enabled ?? glasses"
+                  :show-eyes-with-glasses="b.accessorySettings?.[shape]?.glasses?.showEyes ?? showEyesWithGlasses"
+                  :glasses-color="b.accessorySettings?.[shape]?.glasses?.color ?? glassesColor"
+                  :eye-color="eyeColor"
+                  :glasses-style="glassesStyle"
+                  :glasses-size="glassesSize"
+                  :mustache="b.accessorySettings?.[shape]?.mustache?.enabled ?? mustache"
+                  :mustache-color="b.accessorySettings?.[shape]?.mustache?.color ?? mustacheColor"
+                  :mustache-style="mustacheStyle"
+                  :mouth="b.accessorySettings?.[shape]?.mouth?.enabled ?? mouth"
+                  :mouth-color="b.accessorySettings?.[shape]?.mouth?.color ?? mouthColor"
+                  :mouth-style="mouthStyle"
+                  :accessory-layout="b.accessoryLayouts?.[shape] ?? accessoryLayout"
                   :paper="i === block ? '#ffffff' : '#f2f2f2'"
                   :frozen-at="POSES[b.state]"
                 />
@@ -465,6 +495,19 @@ function onRulerMove(e: PointerEvent) {
               :shape="shape"
               :color="color"
               :expression="expression"
+              :glasses="glasses"
+              :show-eyes-with-glasses="showEyesWithGlasses"
+              :glasses-color="glassesColor"
+              :eye-color="eyeColor"
+              :glasses-style="glassesStyle"
+              :glasses-size="glassesSize"
+              :mustache="mustache"
+              :mustache-color="mustacheColor"
+              :mustache-style="mustacheStyle"
+              :mouth="mouth"
+              :mouth-color="mouthColor"
+              :mouth-style="mouthStyle"
+              :accessory-layout="accessoryLayout"
               @pick="emit('add', $event)"
             />
           </li>

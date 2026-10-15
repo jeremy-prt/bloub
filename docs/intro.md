@@ -1,8 +1,8 @@
 # The arrival sequence
 
 Played when you land on the site (`src/ui/intro.ts`, pure and tested): the ball
-appears alone in the centre, **its eyes travel a full turn around it**, so it
-looks like it's spinning on the spot, then it slides into place while the
+appears alone in the centre, **its eyes sweep horizontally once**,
+then settle back into their chosen pose while it slides into place and the
 interface appears around it.
 
 ## The montage plays only `idle`, and that's the expensive lesson
@@ -21,21 +21,10 @@ Not in a chain of states. It's the only mechanism in the project whose duration
 **we choose** (`setLook(look, now, morph)`), and therefore the only one that allows
 a slow eye movement. A state fade lasts what the video measured.
 
-## The ball is ROUND for the duration of the turn
+## The gaze moves horizontally
 
-Whatever shape the user picked, and it morphs towards theirs as it reaches its
-place. Not out of taste: the eyes are stuck back onto the real outline
-(`radiusAtAngle`) so they don't spill out of the silhouette. On a circle that
-radius is constant, so the turn is smooth; on a teardrop they follow the profile
-and hop, **up to 25 px of vertical deviation** from the circle's trajectory, and a
-test measures it. This isn't fixable elsewhere: `radiusAtAngle` is doing exactly
-what it's there for.
-
-## `tourLook` is jerky crossing the limb, and that isn't tunable
-
-20 px between two frames: near the edge a small angle becomes a large on-screen
-displacement, and the eye disappears then reappears. Slowing it down changes
-nothing: the trajectory demands it. It's accepted, and it's what makes the effect.
+The welcome script supplies the horizontal eye angle. The body and its
+accessories stay still; pitch and roll stay with the chosen gaze pose.
 
 ## `intro` and `nue` are not the same moment
 

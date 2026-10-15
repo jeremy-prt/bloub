@@ -17,6 +17,7 @@ import {
   type Cycle,
   uniqueName
 } from './cycles'
+import { DEFAULT_ACCESSORY_LAYOUT } from '../ui/accessories'
 import { SEQUENCE, STATES, STATE_BY_ID } from './states'
 
 describe('cycle par defaut', () => {
@@ -158,6 +159,42 @@ describe('relecture du stockage', () => {
     const cycle = parseCycles(raw)[0]!
     expect(Object.keys(cycle).sort()).toEqual(['blocks', 'id', 'name'])
     expect(Object.keys(cycle.blocks[0]!).sort()).toEqual(['duration', 'state'])
+  })
+
+  it('conserve les reglages d accessoires par bloc et les borne au rechargement', () => {
+    const raw =
+      '[{"id":"c1","name":"A","blocks":[' +
+      '{"state":"idle","duration":2,"accessoryLayouts":{"cercle":{' +
+      '"mustache":{"x":14,"curve":3,"roundness":0.7}}}},' +
+      '{"state":"wink","duration":2}]}]'
+    const cycle = parseCycles(raw)[0]!
+    expect(cycle.blocks[0]!.accessoryLayouts?.cercle?.mustache).toMatchObject({
+      x: 14,
+      curve: 1,
+      roundness: 0.7
+    })
+    expect(cycle.blocks[1]!.accessoryLayouts).toBeUndefined()
+    expect(Object.keys(cycle.blocks[0]!).sort()).toEqual([
+      'accessoryLayouts',
+      'duration',
+      'state'
+    ])
+  })
+
+  it('deplace les reglages avec leur bloc dans le montage', () => {
+    const blocks = [
+      {
+        ...makeBlock('idle'),
+        accessoryLayouts: {
+          cercle: {
+            ...DEFAULT_ACCESSORY_LAYOUT,
+            mustache: { ...DEFAULT_ACCESSORY_LAYOUT.mustache, curve: 0.8 }
+          }
+        }
+      },
+      makeBlock('wink')
+    ]
+    expect(moveBlock(blocks, 0, 1)[1]!.accessoryLayouts).toEqual(blocks[0]!.accessoryLayouts)
   })
 
   /*

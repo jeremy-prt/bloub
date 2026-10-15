@@ -3,12 +3,31 @@ import { ref } from 'vue'
 import BotTile from '@/components/BotTile.vue'
 import { POSES, SEQUENCE, STATE_BY_ID, type StateId } from '@/bot/states'
 import { t } from '@/i18n'
+import type { GlassesStyle } from '@/ui/glasses'
+import type { AccessoryLayout, MouthStyle, MustacheStyle } from '@/ui/accessories'
 
 /**
  * Carte « + » de la piste et sa palette. Ajouter depuis la piste evite d'aller
  * jusqu'au panneau de droite quand on monte.
  */
-defineProps<{ shape: string; color: string; expression: string }>()
+defineProps<{
+  shape: string
+  color: string
+  expression: string
+  glasses: boolean
+  showEyesWithGlasses: boolean
+  glassesColor: string
+  eyeColor: string
+  glassesStyle: GlassesStyle
+  glassesSize: number
+  mustache: boolean
+  mustacheColor: string
+  mustacheStyle: MustacheStyle
+  mouth: boolean
+  mouthColor: string
+  mouthStyle: MouthStyle
+  accessoryLayout: AccessoryLayout
+}>()
 const emit = defineEmits<{ pick: [state: StateId] }>()
 
 /** Les animations dans l'ordre de la video. */
@@ -104,6 +123,19 @@ function pick(state: StateId) {
         :shape="shape"
         :color="color"
         :expression="expression"
+        :glasses="glasses"
+        :show-eyes-with-glasses="showEyesWithGlasses"
+        :glasses-color="glassesColor"
+        :eye-color="eyeColor"
+        :glasses-style="glassesStyle"
+        :glasses-size="glassesSize"
+        :mustache="mustache"
+        :mustache-color="mustacheColor"
+        :mustache-style="mustacheStyle"
+        :mouth="mouth"
+        :mouth-color="mouthColor"
+        :mouth-style="mouthStyle"
+        :accessory-layout="accessoryLayout"
         :frozen-at="POSES[s.id]"
         @click="pick(s.id)"
       />

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { useTemplateRef } from 'vue'
 import { t } from '@/i18n'
+import ExportBackground from '@/components/ExportBackground.vue'
 import { FONDS_GIF, type FondGif } from '@/ui/export'
+import type { ExportBackground as ExportBackgroundSettings } from '@/ui/background'
 import { useModalDialog } from '@/ui/useModalDialog'
 
 /**
@@ -18,6 +20,7 @@ import { useModalDialog } from '@/ui/useModalDialog'
  */
 const open = defineModel<boolean>('open', { required: true })
 const fond = defineModel<FondGif>('fond', { required: true })
+const backdrop = defineModel<ExportBackgroundSettings>('backdrop', { required: true })
 const emit = defineEmits<{ confirm: [] }>()
 
 const boite = useTemplateRef<HTMLDialogElement>('boite')
@@ -32,7 +35,7 @@ function confirm() {
 <template>
   <dialog
     ref="boite"
-    class="dialogue m-auto w-80 rounded-2xl bg-white p-5 text-[var(--ink)] shadow-xl"
+    class="dialogue m-auto max-h-[90dvh] w-80 overflow-y-auto rounded-2xl bg-white p-5 text-[var(--ink)] shadow-xl"
     :aria-label="t('export.gifTitle')"
     @close="open = false"
     @cancel.prevent="open = false"
@@ -43,7 +46,9 @@ function confirm() {
         <p class="text-xs text-[var(--muted)]">{{ t('export.gifDetail') }}</p>
       </div>
 
-      <fieldset class="flex flex-col gap-1">
+      <ExportBackground v-model="backdrop" />
+
+      <fieldset v-if="backdrop.mode === 'none'" class="flex flex-col gap-1">
         <legend class="sr-only">{{ t('export.gifBackground') }}</legend>
         <label
           v-for="(choix, i) in FONDS_GIF"

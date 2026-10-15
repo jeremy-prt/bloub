@@ -18,6 +18,8 @@ import {
 import type { StateId } from '@/bot/states'
 import { MAX_ZOOM, MIN_ZOOM, mmss } from '@/ui/timeline'
 import { nomDeCycle, pluriel, t } from '@/i18n'
+import type { GlassesStyle } from '@/ui/glasses'
+import type { AccessoryLayout, MouthStyle, MustacheStyle } from '@/ui/accessories'
 
 /**
  * Barre de montage : elle tient les cycles (choix, creation, renommage,
@@ -30,6 +32,20 @@ const props = defineProps<{
   shape: string
   color: string
   expression: string
+  hands: boolean
+  glasses: boolean
+  showEyesWithGlasses: boolean
+  glassesColor: string
+  eyeColor: string
+  glassesStyle: GlassesStyle
+  glassesSize: number
+  mustache: boolean
+  mustacheColor: string
+  mustacheStyle: MustacheStyle
+  mouth: boolean
+  mouthColor: string
+  mouthStyle: MouthStyle
+  accessoryLayout: AccessoryLayout
 }>()
 
 /**
@@ -255,6 +271,20 @@ function onRemove() {
         :shape="shape"
         :color="color"
         :expression="expression"
+        :hands="hands"
+        :glasses="glasses"
+        :show-eyes-with-glasses="showEyesWithGlasses"
+        :glasses-color="glassesColor"
+        :eye-color="eyeColor"
+        :glasses-style="glassesStyle"
+        :glasses-size="glassesSize"
+        :mustache="mustache"
+        :mustache-color="mustacheColor"
+        :mustache-style="mustacheStyle"
+        :mouth="mouth"
+        :mouth-color="mouthColor"
+        :mouth-style="mouthStyle"
+        :accessory-layout="accessoryLayout"
         @update:blocks="(b: Block[]) => edit({ blocks: b })"
         @add="(s: StateId) => edit({ blocks: blocksWith(blocks, s) })"
         @seek="emit('seek', $event)"

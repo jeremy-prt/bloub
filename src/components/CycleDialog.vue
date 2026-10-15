@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, useTemplateRef } from 'vue'
 import { t } from '@/i18n'
+import ExportBackground from '@/components/ExportBackground.vue'
 import {
   FONDS_GIF,
   FORMATS_CYCLE,
@@ -10,13 +11,12 @@ import {
   type FormatCycle
 } from '@/ui/export'
 import { useModalDialog } from '@/ui/useModalDialog'
+import type { ExportBackground as ExportBackgroundSettings } from '@/ui/background'
 
 /**
  * Choix du format avant d'exporter le montage.
  *
- * Le groupe « fond » n'apparait QUE pour le GIF, au lieu d'etre affiche grise :
- * la video n'a pas de canal alpha du tout, donc il n'y a pas de choix a refuser,
- * il n'y a pas de choix.
+ * Le format et le fond sont choisis avant l'export du montage.
  */
 const props = defineProps<{
   avancement: number | null
@@ -26,6 +26,8 @@ const props = defineProps<{
 const open = defineModel<boolean>('open', { required: true })
 const format = defineModel<FormatCycle>('format', { required: true })
 const fond = defineModel<FondGif>('fond', { required: true })
+const turnEyes = defineModel<boolean>('turnEyes', { required: true })
+const backdrop = defineModel<ExportBackgroundSettings>('backdrop', { required: true })
 const emit = defineEmits<{ confirm: []; annuler: [] }>()
 
 const boite = useTemplateRef<HTMLDialogElement>('boite')
@@ -75,7 +77,7 @@ function ferme() {
 <template>
   <dialog
     ref="boite"
-    class="dialogue m-auto w-80 rounded-2xl bg-white p-5 text-[var(--ink)] shadow-xl"
+    class="dialogue m-auto max-h-[90dvh] w-80 overflow-y-auto rounded-2xl bg-white p-5 text-[var(--ink)] shadow-xl"
     :aria-label="t('timeline.export')"
     @close="open = false"
     @cancel.prevent="ferme"
@@ -108,9 +110,24 @@ function ferme() {
         </label>
       </fieldset>
 
-      <!-- seul le GIF a un alpha a offrir : cf. la doc du composant -->
+      <label class="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm" :class="occupe && 'opacity-60'">
+        <input
+          v-model="turnEyes"
+          type="checkbox"
+          class="accent-[var(--ink)]"
+          :disabled="occupe"
+        />
+        <span class="flex flex-col">
+          {{ t('export.cycleTurnEyes') }}
+          <span class="text-xs text-[var(--muted)]">{{ t('export.cycleTurnEyesHelp') }}</span>
+        </span>
+      </label>
+
+      <ExportBackground v-model="backdrop" :disabled="occupe" />
+
+      <!-- La couleur remplit l'extérieur de l'avatar, indépendamment de sa texture. -->
       <fieldset
-        v-if="cycleAccepteTransparence(format)"
+        v-if="cycleAccepteTransparence(format) && backdrop.mode === 'none'"
         class="flex flex-col gap-1"
         :disabled="occupe"
       >

@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { t } from '@/i18n'
+import ExportBackground from '@/components/ExportBackground.vue'
 import { copiePossible } from '@/ui/capture'
 import { ACTIONS, ACTION_DEFAUT, type ActionId, type EtatExport } from '@/ui/export'
+import type { ExportBackground as ExportBackgroundSettings } from '@/ui/background'
 
 /**
  * Barre d'export de l'avatar : un bouton pour le format courant, et une flèche
@@ -14,6 +16,7 @@ import { ACTIONS, ACTION_DEFAUT, type ActionId, type EtatExport } from '@/ui/exp
  */
 const props = defineProps<{ etat: EtatExport }>()
 const emit = defineEmits<{ exporter: [ActionId] }>()
+const background = defineModel<ExportBackgroundSettings>('background', { required: true })
 
 const open = ref(false)
 const root = ref<HTMLElement | null>(null)
@@ -132,8 +135,9 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', onOutside))
 
     <div
       v-if="open"
-      class="absolute right-0 bottom-full z-10 mb-2 w-60 rounded-xl border border-[var(--line)] bg-[var(--paper)] p-1 shadow-lg"
+      class="absolute right-0 bottom-full z-10 mb-2 max-h-[min(70dvh,32rem)] w-60 overflow-y-auto rounded-xl border border-[var(--line)] bg-[var(--paper)] p-1 shadow-lg"
     >
+      <ExportBackground v-model="background" class="px-2 pb-2" />
       <button
         v-for="action in actions"
         :key="action.id"

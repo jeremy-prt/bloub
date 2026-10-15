@@ -1,4 +1,10 @@
 import { SEQUENCE, STATES, STATE_BY_ID, type StateId } from './states'
+import {
+  normalizeAccessoryBlockSettingsByShape,
+  normalizeAccessoryLayouts,
+  type AccessoryBlockSettingsByShape,
+  type AccessoryLayouts
+} from '../ui/accessories'
 
 /**
  * Un cycle est un montage : une suite de blocs, chacun un etat tenu pendant une
@@ -13,6 +19,8 @@ import { SEQUENCE, STATES, STATE_BY_ID, type StateId } from './states'
 export interface Block {
   state: StateId
   duration: number
+  accessoryLayouts?: AccessoryLayouts
+  accessorySettings?: AccessoryBlockSettingsByShape
 }
 
 export interface Cycle {
@@ -170,7 +178,12 @@ export function nextCycleId(cycles: Cycle[]): string {
 
 function parseBlock(raw: unknown): Block | null {
   if (typeof raw !== 'object' || raw === null) return null
-  const { state, duration } = raw as { state?: unknown; duration?: unknown }
+  const { state, duration, accessoryLayouts, accessorySettings } = raw as {
+    state?: unknown
+    duration?: unknown
+    accessoryLayouts?: unknown
+    accessorySettings?: unknown
+  }
   /*
    * Valide contre SEQUENCE et non contre `STATE_BY_ID` : ce dernier contient `swirl`, qui
    * est deliberement hors du catalogue — c'est la transition d'entree des reglages, un
@@ -181,7 +194,16 @@ function parseBlock(raw: unknown): Block | null {
    */
   if (typeof state !== 'string' || !SEQUENCE.includes(state as StateId)) return null
   if (typeof duration !== 'number' || !Number.isFinite(duration)) return null
-  return { state: state as StateId, duration: clampDuration(state as StateId, duration) }
+  return {
+    state: state as StateId,
+    duration: clampDuration(state as StateId, duration),
+    ...(accessoryLayouts && typeof accessoryLayouts === 'object'
+      ? { accessoryLayouts: normalizeAccessoryLayouts(accessoryLayouts) }
+      : {}),
+    ...(accessorySettings && typeof accessorySettings === 'object'
+      ? { accessorySettings: normalizeAccessoryBlockSettingsByShape(accessorySettings) }
+      : {})
+  }
 }
 
 function parseCycle(raw: unknown, seen: Cycle[]): Cycle | null {

@@ -2,23 +2,44 @@
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, triggerRef, watch } from 'vue'
 import { NOTIF_BLUE } from '@/bot/decor'
 import { BotEngine, type BotFrame } from '@/bot/engine'
-import { clamp, easings } from '@/bot/math'
+import { clamp, r2 } from '@/bot/math'
 import { t } from '@/i18n'
-import { lookTarget, TURN_TIME, type GazeScript } from '@/ui/gaze'
+import BotHands from '@/components/BotHands.vue'
+import {
+  sweepLook,
+  type GazeScript
+} from '@/ui/gaze'
 import {
   DEFAULT_EXPRESSION,
   EXPRESSION_BY_ID
 } from '@/bot/expressions'
 import {
-  COLOR_BY_ID,
+  colorHex,
   DEFAULT_COLOR,
   DEFAULT_SHAPE,
   SHAPE_BY_ID,
   mixHex
 } from '@/bot/skins'
+import {
+  mustachePath,
+  mouthPath,
+  type AccessoryKind,
+  type AccessoryBlockSettings,
+  type AccessoryLayout,
+  type MouthStyle,
+  type MustacheStyle
+} from '@/ui/accessories'
+import { eyeColorHex, glassesLensPath, type GlassesStyle } from '@/ui/glasses'
 import { blockAt, defaultCycle, offsetOf, type Block } from '@/bot/cycles'
 import { DEMI_VIEWBOX, RAYON } from '@/bot/repere'
-import { STATE_BY_ID, type StateId } from '@/bot/states'
+import { type StateId } from '@/bot/states'
+import { BACKGROUND_DIRECTIONS, type ExportBackground } from '@/ui/background'
+
+type AccessorySelection = AccessoryKind
+
+const emit = defineEmits<{
+  accessorySelect: [kind: AccessorySelection]
+}>()
 
 const props = withDefaults(
   defineProps<{
@@ -27,10 +48,27 @@ const props = withDefaults(
     shape?: string
     /** identifiant de couleur du personnalisateur */
     color?: string
+    /** lunettes portees par le bot */
+    glasses?: boolean
+    showEyesWithGlasses?: boolean
+    /** couleur libre ou identifiant de palette des lunettes */
+    glassesColor?: string
+    /** couleur libre de l'oeil */
+    eyeColor?: string
+    glassesStyle?: GlassesStyle
+    glassesSize?: number
+    mustache?: boolean
+    mustacheColor?: string
+    mustacheStyle?: MustacheStyle
+    mouth?: boolean
+    mouthColor?: string
+    mouthStyle?: MouthStyle
     /** identifiant d'expression de repos du personnalisateur */
     expression?: string
     /** couleur du fond, utilisee pour la brume de profondeur des particules */
     paper?: string
+    /** couleur, degrade ou image de fond derriere le personnage */
+    backdrop?: ExportBackground
     /**
      * Fige le rendu a cette date (en secondes depuis le debut de l'etat).
      * Le moteur etant une fonction pure du temps, on obtient une image
@@ -43,16 +81,13 @@ const props = withDefaults(
      * son bloc. Par defaut, le cycle releve sur la video.
      */
     cycle?: Block[]
-    /**
-     * Le regard suit le pointeur. Hors de portee des vignettes figees, qui n'ont
-     * pas de boucle d'animation : les brancher reveillerait autant de boucles
-     * qu'il y a de cases.
-     */
-    follow?: boolean
+    /** Fait tourner le regard horizontalement. */
+    turnEyes?: boolean
+    /** Affiche deux mains independantes sur les cotes du corps. */
+    hands?: boolean
     /**
      * Regard scripte de l'arrivee : evalue a chaque image avec le temps ecoule
-     * depuis qu'il a ete pose. Independant de `follow`, qui vise le pointeur —
-     * ici c'est le script qui decide de tout, y compris de sa duree.
+     * depuis qu'il a ete pose.
      */
     gaze?: GazeScript | null
   }>(),
@@ -60,11 +95,25 @@ const props = withDefaults(
     size: 320,
     shape: DEFAULT_SHAPE,
     color: DEFAULT_COLOR,
+    glasses: false,
+    showEyesWithGlasses: false,
+    glassesColor: '#202028',
+    eyeColor: '#f9f9f9',
+    glassesStyle: 'sun',
+    glassesSize: 1,
+    mustache: false,
+    mustacheColor: '#75452d',
+    mustacheStyle: 'classic',
+    mouth: false,
+    mouthColor: '#c96c73',
+    mouthStyle: 'smile',
     expression: DEFAULT_EXPRESSION,
     paper: '#f9f9f9',
+    backdrop: undefined,
     frozenAt: undefined,
     cycle: () => defaultCycle().blocks,
-    follow: false,
+    turnEyes: false,
+    hands: false,
     gaze: null
   }
 )
@@ -80,6 +129,35 @@ const state = defineModel<StateId>('state', { default: 'idle' })
 const playing = defineModel<boolean>('playing', { default: false })
 /** Temps ecoule dans le bloc courant, pour la tete de lecture de la timeline. */
 const elapsed = defineModel<number>('elapsed', { default: 0 })
+const accessoryLayoutModel = defineModel<AccessoryLayout>('accessoryLayout', {
+  default: () => ({
+    glasses: { x: 0, y: 0, width: 1, height: 1, rotation: 0, curve: 0, roundness: 0, lowerCurve: 0 },
+    mustache: { x: 0, y: 0, width: 1, height: 1, rotation: 0, curve: 0, roundness: 0, lowerCurve: 0 },
+    mouth: { x: 0, y: 0, width: 1, height: 1, rotation: 0, curve: 0, roundness: 0, lowerCurve: 0 },
+  })
+})
+const renderBlockIndex = ref(block.value)
+const accessoryLayout = computed(
+  () =>
+    props.cycle[renderBlockIndex.value]?.accessoryLayouts?.[props.shape] ??
+    accessoryLayoutModel.value
+)
+const blockAccessorySettings = computed<AccessoryBlockSettings>(
+  () =>
+    props.cycle[renderBlockIndex.value]?.accessorySettings?.[props.shape] ?? {}
+)
+const glassesEnabled = computed(
+  () => blockAccessorySettings.value.glasses?.enabled ?? props.glasses
+)
+const showEyesWithGlasses = computed(
+  () => blockAccessorySettings.value.glasses?.showEyes ?? props.showEyesWithGlasses
+)
+const mustacheEnabled = computed(
+  () => blockAccessorySettings.value.mustache?.enabled ?? props.mustache
+)
+const mouthEnabled = computed(
+  () => !mustacheEnabled.value && (blockAccessorySettings.value.mouth?.enabled ?? props.mouth)
+)
 
 // Le repere vient de `src/bot/` : c'est lui qui definit ce que le moteur rend, le
 // composant n'en est qu'un client. Les noms courts restent, ils sont partout dans le
@@ -88,13 +166,223 @@ const R = RAYON
 const VB = DEMI_VIEWBOX
 
 const shapeRadii = computed(() => SHAPE_BY_ID.get(props.shape)?.radii ?? null)
-const ink = computed(() => COLOR_BY_ID.get(props.color)?.hex ?? '#0a0a0c')
+const referenceFaceEyes = computed(
+  () =>
+    new BotEngine(
+      R,
+      'idle',
+      shapeRadii.value,
+      EXPRESSION_BY_ID.get(props.expression) ?? null
+    ).sample(1).eyes
+)
+const ink = computed(() => colorHex(props.color))
+const glassesInk = computed(() =>
+  colorHex(blockAccessorySettings.value.glasses?.color ?? props.glassesColor)
+)
+const glassesHighlight = computed(() => mixHex(glassesInk.value, '#ffffff', 0.56))
+const glassesTint = computed(() => mixHex(glassesInk.value, '#000000', 0.72))
+const eyeInk = computed(() => eyeColorHex(props.eyeColor))
+const mustacheInk = computed(() =>
+  colorHex(blockAccessorySettings.value.mustache?.color ?? props.mustacheColor)
+)
+const mouthInk = computed(() =>
+  colorHex(blockAccessorySettings.value.mouth?.color ?? props.mouthColor)
+)
+const glassesScale = computed(() => clamp(props.glassesSize, 0.65, 1.45))
+const lunettes = computed(() =>
+  frame.value.eyes.map((eye) => {
+    let width = Math.max(eye.width * 1.7, eye.height * 0.76) * glassesScale.value
+    let height = Math.max(eye.height * 1.08, eye.width * 1.25) * glassesScale.value
+
+    if (props.glassesStyle === 'round') {
+      width = height = Math.max(width, height)
+    } else if (props.glassesStyle === 'aviator') {
+      width = Math.max(width, height * 0.92)
+      height *= 1.16
+    } else if (props.glassesStyle === 'catEye') {
+      width *= 1.12
+      height *= 0.96
+    } else if (props.glassesStyle === 'wayfarer') {
+      width *= 1.08
+      height *= 1.04
+    } else if (props.glassesStyle === 'sun') {
+      width = Math.max(width * 1.12, height * 1.08)
+      height *= 1.12
+    }
+    const milieu = (Math.min(...frame.value.eyes.map((item) => item.x)) +
+      Math.max(...frame.value.eyes.map((item) => item.x))) / 2
+    const outside = eye.x < milieu ? -1 : 1
+    const side = outside < 0 ? 'left' : 'right'
+    const offsetX = accessoryLayout.value.glasses[`${side}LensX`] ?? 0
+    const offsetY = accessoryLayout.value.glasses[`${side}LensY`] ?? 0
+    const matrix = eye.frameMatrix.match(/^matrix\(([^)]+)\)$/)
+    const values = matrix?.[1]?.split(',').map(Number)
+    const frameMatrix =
+      values?.length === 6
+        ? `matrix(${values[0]},${values[1]},${values[2]},${values[3]},${r2(values[4]! + offsetX)},${r2(values[5]! + offsetY)})`
+        : eye.frameMatrix
+    return { ...eye, x: eye.x + offsetX, y: eye.y + offsetY, frameMatrix, width, height, outside }
+  })
+)
+const faceAccessories = computed(() => {
+  if (frame.value.eyes.length !== 2) return null
+  const [left, right] = [...frame.value.eyes].sort((a, b) => a.x - b.x)
+  const centerX = (left!.x + right!.x) / 2
+  const centerY = (left!.y + right!.y) / 2
+  const [referenceLeft, referenceRight] = [...referenceFaceEyes.value].sort((a, b) => a.x - b.x)
+  const eyeWidth = (referenceLeft!.width + referenceRight!.width) / 2
+  const eyeHeight = (referenceLeft!.height + referenceRight!.height) / 2
+  const eyeGap = referenceRight!.x - referenceLeft!.x
+  const mustacheWidth = Math.max(eyeGap + eyeWidth * 1.8, eyeWidth * 3.6)
+  const rotation = (eye: BotFrame['eyes'][number]) => {
+    const match = /^matrix\(([^,]+),([^,]+)/.exec(eye.frameMatrix)
+    return match ? Math.atan2(Number(match[2]), Number(match[1])) : 0
+  }
+  const angles = [rotation(left!), rotation(right!)]
+  const angle = Math.atan2(
+    Math.sin(angles[0]!) + Math.sin(angles[1]!),
+    Math.cos(angles[0]!) + Math.cos(angles[1]!)
+  )
+  const glasses = accessoryLayout.value.glasses
+  const glassesAngle = (glasses.rotation * Math.PI) / 180
+  const glassesCos = Math.cos(glassesAngle)
+  const glassesSin = Math.sin(glassesAngle)
+  const glassesA = glassesCos * glasses.width
+  const glassesB = glassesSin * glasses.width
+  const glassesC = -glassesSin * glasses.height
+  const glassesD = glassesCos * glasses.height
+  const glassesCenterX = (left!.x + right!.x) / 2
+  const glassesCenterY = (left!.y + right!.y) / 2
+  const mustache = accessoryLayout.value.mustache
+  const mouth = accessoryLayout.value.mouth
+  const faceMatrix = (placement: typeof mustache, x: number, y: number, sx: number, sy: number) => {
+    const placementAngle = angle + (placement.rotation * Math.PI) / 180
+    const cos = Math.cos(placementAngle)
+    const sin = Math.sin(placementAngle)
+    const a = cos * sx
+    const b = sin * sx
+    const c = -sin * sy
+    const d = cos * sy
+    const faceCos = Math.cos(angle)
+    const faceSin = Math.sin(angle)
+    const offsetX = faceCos * placement.x - faceSin * placement.y
+    const offsetY = faceSin * placement.x + faceCos * placement.y
+    return `matrix(${r2(a)},${r2(b)},${r2(c)},${r2(d)},${r2(x + offsetX)},${r2(y + offsetY)})`
+  }
+
+  return {
+    glassesTransform: `matrix(${r2(glassesA)},${r2(glassesB)},${r2(glassesC)},${r2(glassesD)},${r2(glassesCenterX + glasses.x - glassesA * glassesCenterX - glassesC * glassesCenterY)},${r2(glassesCenterY + glasses.y - glassesB * glassesCenterX - glassesD * glassesCenterY)})`,
+    mustacheTransform: faceMatrix(
+      mustache,
+      centerX,
+      centerY + eyeHeight * 1.05,
+      (mustacheWidth / 100) * mustache.width,
+      (Math.max(eyeHeight * 0.9, 12) / 40) * mustache.height
+    ),
+    mouthTransform: faceMatrix(
+      mouth,
+      centerX,
+      centerY + eyeHeight * 1.05,
+      (Math.max(eyeGap * 0.62, eyeWidth * 1.5) / 100) * mouth.width,
+      (Math.max(eyeHeight * 0.42, 8) / 40) * mouth.height
+    )
+  }
+})
+
+type LensSide = 'left' | 'right'
+type AccessoryDrag = {
+  kind: AccessorySelection
+  lensSide?: LensSide
+  pointerId: number
+  x: number
+  y: number
+}
+let accessoryDrag: AccessoryDrag | null = null
+const svg = ref<SVGSVGElement | null>(null)
+
+function svgPoint(event: PointerEvent) {
+  const element = svg.value
+  const matrix = element?.getScreenCTM()
+  if (!element || !matrix) return null
+  const point = element.createSVGPoint()
+  point.x = event.clientX
+  point.y = event.clientY
+  return point.matrixTransform(matrix.inverse())
+}
+
+function accessoryPoint(event: PointerEvent) {
+  return svgPoint(event)
+}
+
+function startAccessoryDrag(kind: AccessorySelection, event: PointerEvent, lensSide?: LensSide) {
+  if (props.frozenAt !== undefined || event.button !== 0) return
+  const element = svg.value
+  const point = accessoryPoint(event)
+  if (!element || !point) return
+  event.preventDefault()
+  event.stopPropagation()
+  emit('accessorySelect', kind)
+  accessoryDrag = { kind, lensSide, pointerId: event.pointerId, x: point.x, y: point.y }
+  element.setPointerCapture(event.pointerId)
+}
+
+function moveAccessory(event: PointerEvent) {
+  if (!accessoryDrag || accessoryDrag.pointerId !== event.pointerId) return
+  const point = accessoryPoint(event)
+  if (!point) return
+  const current = accessoryLayout.value[accessoryDrag.kind]
+  const deltaX = point.x - accessoryDrag.x
+  const deltaY = point.y - accessoryDrag.y
+  const placement = accessoryDrag.lensSide
+    ? {
+        ...current,
+        [`${accessoryDrag.lensSide}LensX`]:
+          accessoryDrag.lensSide === 'left'
+            ? clamp((current.leftLensX ?? 0) + deltaX, -60, 60)
+            : clamp((current.rightLensX ?? 0) + deltaX, -60, 60),
+        [`${accessoryDrag.lensSide}LensY`]:
+          accessoryDrag.lensSide === 'left'
+            ? clamp((current.leftLensY ?? 0) + deltaY, -60, 60)
+            : clamp((current.rightLensY ?? 0) + deltaY, -60, 60)
+      }
+    : {
+        ...current,
+        x: clamp(current.x + deltaX, -90, 90),
+        y: clamp(current.y + deltaY, -90, 90)
+      }
+  accessoryLayoutModel.value = {
+    ...accessoryLayout.value,
+    [accessoryDrag.kind]: placement
+  }
+  accessoryDrag.x = point.x
+  accessoryDrag.y = point.y
+}
+
+function endAccessoryDrag(event: PointerEvent) {
+  if (accessoryDrag?.pointerId === event.pointerId) accessoryDrag = null
+}
+const pont = computed(() => {
+  if (lunettes.value.length !== 2) return null
+  const [gauche, droite] = [...lunettes.value].sort((a, b) => a.x - b.x)
+  const x1 = gauche!.x + gauche!.width * 0.47
+  const x2 = droite!.x - droite!.width * 0.47
+  const milieu = (x1 + x2) / 2
+  const y = (gauche!.y + droite!.y) / 2 - glassesScale.value * 3
+  return `M${r2(x1)} ${r2(gauche!.y)} Q${r2(milieu)} ${r2(y)} ${r2(x2)} ${r2(droite!.y)}`
+})
 const expression = computed(() => EXPRESSION_BY_ID.get(props.expression) ?? null)
 
 const engine = new BotEngine(R, state.value, shapeRadii.value, expression.value)
 const frame = shallowRef<BotFrame>(engine.sample(props.frozenAt ?? 0))
+const handTime = ref(props.frozenAt ?? 0)
 const uid = Math.random().toString(36).slice(2, 8)
+const backgroundGradientId = `${uid}-background-gradient`
+const backgroundClipId = `${uid}-background-clip`
+const backgroundGradientDirection = computed(() =>
+  BACKGROUND_DIRECTIONS[props.backdrop?.direction ?? 'diagonal']
+)
 const maskId = `bot-mask-${uid}`
+const glassesClipId = `bot-glasses-${uid}`
 
 let raf = 0
 let nextAt = Infinity
@@ -114,6 +402,7 @@ function apply(i: number, from = 0) {
     nextAt = Infinity
     return
   }
+  renderBlockIndex.value = i
   blockStart = clock - from
   elapsed.value = from
   state.value = b.state
@@ -165,6 +454,7 @@ function rendAt(t: number) {
   const blocs = props.cycle
   if (!blocs.length) return
   const { index } = blockAt(blocs, t)
+  renderBlockIndex.value = index
   if (index !== dernierBloc) {
     const b = blocs[index]!
     state.value = b.state
@@ -180,84 +470,13 @@ function rendAt(t: number) {
     else engine.setState(b.state, offsetOf(blocs, index))
     dernierBloc = index
   }
+  if (props.turnEyes) engine.setLook(sweepLook(t), t - SCRIPT_MORPH, SCRIPT_MORPH)
+  handTime.value = t
   frame.value = engine.sample(t)
   triggerRef(frame)
 }
 
 defineExpose({ seek, rendAt })
-
-/* ------------------------------------------------------- regard qui suit */
-
-const svg = ref<SVGSVGElement | null>(null)
-
-/** Derniere position connue du pointeur, en coordonnees client. */
-let pointer: { x: number; y: number } | null = null
-/** true = une cible est posee sur le moteur, donc il y a de quoi relacher. */
-let aiming = false
-/** Date d'horloge a laquelle le demi-tour a commence. */
-let turnSince = 0
-
-function onPointerMove(event: PointerEvent) {
-  // Le tactile n'a pas de curseur qui traine : un doigt leve laisserait le
-  // regard fige sur le dernier point touche, ce qui se lit comme un bug.
-  if (event.pointerType === 'touch') return
-  pointer = { x: event.clientX, y: event.clientY }
-}
-
-function onPointerLeave() {
-  pointer = null
-}
-
-function release() {
-  if (!aiming) return
-  // meme duree qu'a l'aller : la tete revient pendant que la boule redescend
-  engine.setLook(null, clock, TURN_TIME)
-  aiming = false
-}
-
-/**
- * Vise le pointeur. Ne fait que la part DOM du travail — mesurer ou est la boule
- * et ou est le curseur — la regle de regard elle-meme etant dans `@/ui/gaze`.
- *
- * Le rectangle est relu a chaque image plutot que memorise : l'avatar glisse et
- * grandit pendant la transition de vue, un centre garde en cache ferait viser a
- * cote pendant tout le mouvement. La normalisation se fait sur la demi-fenetre et
- * non sur la taille de l'avatar : le regard doit saturer quand le curseur atteint
- * le bord de l'ecran, quelle que soit la place que la boule occupe.
- */
-function aim() {
-  // Le regard ne se pilote que sur les etats a VISAGE DE REPOS. Ailleurs la pose
-  // du regard EST l'animation relevee — l'orbite, par laquelle s'ouvre la vue,
-  // fait deja filer les yeux autour de la sphere — et s'y superposer la
-  // brouillerait.
-  if (!STATE_BY_ID.get(state.value)?.baseFace) {
-    release()
-    return
-  }
-  const box = svg.value?.getBoundingClientRect()
-  /*
-   * Une boite sans surface : il n'y a rien a viser, et surtout la normalisation
-   * ci-dessous deviendrait `0 / 0`, donc `NaN`. Or le moteur GARDE la derniere
-   * cible : un seul NaN pose une fois y reste pour toujours, et le bot ne se
-   * repose plus jamais. Ca arrive pour de vrai quand le volet du navigateur est
-   * masque — `getBoundingClientRect` rend alors des zeros.
-   */
-  if (!box || box.width === 0 || box.height === 0) return
-  // le tour part a l'entree dans la vue, en meme temps que les anneaux
-  if (!aiming) turnSince = clock
-  const demiLargeur = Math.max(1, window.innerWidth / 2)
-  const demiHauteur = Math.max(1, window.innerHeight / 2)
-  engine.setLook(
-    lookTarget({
-      nx: pointer ? clamp((pointer.x - (box.left + box.width / 2)) / demiLargeur, -1, 1) : 0,
-      ny: pointer ? clamp((pointer.y - (box.top + box.height / 2)) / demiHauteur, -1, 1) : 0,
-      tour: easings.easeOutQuint(clamp((clock - turnSince) / TURN_TIME)),
-      pointer: pointer !== null
-    }),
-    clock
-  )
-  aiming = true
-}
 
 /* ------------------------------------------------- regard d'arrivee */
 
@@ -267,8 +486,8 @@ let gazeSince = 0
 let scripted = false
 
 /**
- * Rattrapage court, la ou le suivi du pointeur prend celui du moteur : le script
- * EST l'animation, et laisser le moteur en lisser une seconde par-dessus
+ * Rattrapage court : le script EST l'animation, et laisser le moteur en lisser
+ * une seconde par-dessus
  * retarderait son depart d'un quart de seconde — un script qui commence par
  * regarder au loin verrait ses yeux partir de la pose, y revenir, puis repartir.
  *
@@ -279,7 +498,7 @@ const SCRIPT_MORPH = 1 / 60
 
 /**
  * Le script decide de tout, y compris de sa duree : on ne fait que lui donner le
- * temps ecoule. La regle elle-meme est dans `@/ui/gaze`, comme celle du suivi.
+ * temps ecoule.
  */
 function scriptedGaze(run: GazeScript) {
   engine.setLook(run(clock - gazeSince), clock, SCRIPT_MORPH)
@@ -336,11 +555,10 @@ function tick(ms: number) {
     }
   }
 
-  // Le suivi prime : les deux ecrivent la meme cible, et l'arrivee est terminee
-  // bien avant qu'une vue a suivi ne s'ouvre.
-  if (props.follow) aim()
-  else if (props.gaze) scriptedGaze(props.gaze)
+  if (props.gaze) scriptedGaze(props.gaze)
+  else if (props.turnEyes) engine.setLook(sweepLook(clock), clock - SCRIPT_MORPH, SCRIPT_MORPH)
 
+  handTime.value = clock
   frame.value = engine.sample(clock)
   triggerRef(frame)
 }
@@ -348,6 +566,12 @@ function tick(ms: number) {
 /** Redessine sans la boucle : sert aux vignettes figees quand la forme change. */
 function redrawFrozen() {
   if (props.frozenAt === undefined) return
+  handTime.value = props.frozenAt
+  engine.setLook(
+    props.turnEyes ? sweepLook(props.frozenAt) : null,
+    props.frozenAt - SCRIPT_MORPH,
+    SCRIPT_MORPH
+  )
   frame.value = engine.sample(props.frozenAt)
   triggerRef(frame)
 }
@@ -424,30 +648,16 @@ watch(expression, (expr) => {
  * premiere image et l'animation exportee ne bouge pas.
  */
 watch(() => props.frozenAt, redrawFrozen)
-
-/**
- * L'ecoute du pointeur ne vit que le temps du suivi. `immediate` parce que la
- * vue peut s'ouvrir deja en mode suivi ; le garde sur `frozenAt` parce qu'une
- * vignette figee n'a pas de boucle pour consommer la cible, donc rien a ecouter.
- */
 watch(
-  () => props.follow && props.frozenAt === undefined,
-  (on) => {
-    if (on) {
-      window.addEventListener('pointermove', onPointerMove)
-      document.addEventListener('pointerleave', onPointerLeave)
+  () => props.turnEyes,
+  (active) => {
+    if (props.frozenAt !== undefined) {
+      redrawFrozen()
       return
     }
-    detach()
-    release()
-  },
-  { immediate: true }
+    engine.setLook(active ? sweepLook(clock) : null, clock, SCRIPT_MORPH)
+  }
 )
-
-function detach() {
-  window.removeEventListener('pointermove', onPointerMove)
-  document.removeEventListener('pointerleave', onPointerLeave)
-}
 
 onMounted(() => {
   if (props.frozenAt !== undefined) return
@@ -457,7 +667,6 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   cancelAnimationFrame(raf)
-  detach()
 })
 
 /**
@@ -490,8 +699,60 @@ function dotAttrs(dot: BotFrame['dots'][number]) {
     :viewBox="`${-VB} ${-VB} ${VB * 2} ${VB * 2}`"
     role="img"
     :aria-label="t('app.botAria')"
+    @pointermove="moveAccessory"
+    @pointerup="endAccessoryDrag"
+    @pointercancel="endAccessoryDrag"
   >
+    <image
+      v-if="props.backdrop?.mode === 'image' && props.backdrop.image"
+      :href="props.backdrop.image"
+      :x="-VB"
+      :y="-VB"
+      :width="VB * 2"
+      :height="VB * 2"
+      preserveAspectRatio="xMidYMid slice"
+      :clip-path="`url(#${backgroundClipId})`"
+    />
+    <rect
+      v-else-if="props.backdrop?.mode === 'color'"
+      :x="-VB"
+      :y="-VB"
+      :width="VB * 2"
+      :height="VB * 2"
+      :fill="props.backdrop.color"
+      :clip-path="`url(#${backgroundClipId})`"
+    />
+    <rect
+      v-else-if="props.backdrop?.mode === 'gradient'"
+      :x="-VB"
+      :y="-VB"
+      :width="VB * 2"
+      :height="VB * 2"
+      :fill="`url(#${backgroundGradientId})`"
+      :clip-path="`url(#${backgroundClipId})`"
+    />
     <defs>
+      <clipPath :id="backgroundClipId" clipPathUnits="userSpaceOnUse">
+        <rect
+          data-background-frame
+          :x="-VB"
+          :y="-VB"
+          :width="VB * 2"
+          :height="VB * 2"
+          rx="10"
+        />
+      </clipPath>
+      <linearGradient
+        :id="backgroundGradientId"
+        gradientUnits="userSpaceOnUse"
+        :x1="backgroundGradientDirection.x1"
+        :y1="backgroundGradientDirection.y1"
+        :x2="backgroundGradientDirection.x2"
+        :y2="backgroundGradientDirection.y2"
+      >
+        <stop offset="0" :stop-color="props.backdrop?.color ?? '#f4f1eb'" />
+        <stop offset="1" :stop-color="props.backdrop?.secondColor ?? '#c9d9f2'" />
+      </linearGradient>
       <!--
         Les yeux sont de vrais trous perces dans le corps (comme sur x.ai), pas
         des formes blanches posees dessus : ils restent donc automatiquement
@@ -507,6 +768,7 @@ function dotAttrs(dot: BotFrame['dots'][number]) {
       >
         <path :d="frame.bodyPath" fill="#fff" />
         <path
+          v-if="!glassesEnabled"
           v-for="(eye, i) in frame.eyes"
           :key="i"
           :d="eye.d"
@@ -522,6 +784,9 @@ function dotAttrs(dot: BotFrame['dots'][number]) {
           fill="#000"
         />
       </mask>
+      <clipPath :id="glassesClipId">
+        <path :d="frame.bodyPath" />
+      </clipPath>
 
       <linearGradient
         v-for="arc in frame.arcs"
@@ -585,6 +850,118 @@ function dotAttrs(dot: BotFrame['dots'][number]) {
       </g>
     </g>
 
+    <BotHands
+      v-if="props.hands"
+      :color="ink"
+      :radius="R"
+      :time="handTime"
+    />
+
+    <g v-if="!glassesEnabled || showEyesWithGlasses" :clip-path="`url(#${glassesClipId})`" :opacity="frame.bodyAlpha">
+      <path
+        v-for="(eye, i) in frame.eyes"
+        :key="i"
+        data-eye-color
+        :d="eye.d"
+        :transform="eye.matrix"
+        :opacity="eye.alpha"
+        :fill="eyeInk"
+      />
+    </g>
+
+    <g
+      v-if="mustacheEnabled && faceAccessories"
+      data-accessory-part
+      data-accessory-kind="mustache"
+      :clip-path="`url(#${glassesClipId})`"
+      :transform="faceAccessories.mustacheTransform"
+      :opacity="frame.bodyAlpha"
+      class="cursor-grab touch-none active:cursor-grabbing"
+      @pointerdown="startAccessoryDrag('mustache', $event)"
+    >
+      <path
+        :d="mustachePath(props.mustacheStyle, accessoryLayout.mustache.curve, accessoryLayout.mustache.roundness)"
+        :fill="mustacheInk"
+        data-accessory-color="mustache"
+      />
+    </g>
+    <g
+      v-if="mouthEnabled && faceAccessories"
+      data-accessory-part
+      data-accessory-kind="mouth"
+      :clip-path="`url(#${glassesClipId})`"
+      :transform="faceAccessories.mouthTransform"
+      :opacity="frame.bodyAlpha"
+      class="cursor-grab touch-none active:cursor-grabbing"
+      @pointerdown="startAccessoryDrag('mouth', $event)"
+    >
+      <path
+        :d="mouthPath(props.mouthStyle, accessoryLayout.mouth.curve, accessoryLayout.mouth.roundness)"
+        :fill="mouthInk"
+        data-accessory-color="mouth"
+      />
+    </g>
+    <g
+      v-if="glassesEnabled && lunettes.length"
+      data-accessory-kind="glasses"
+      :transform="faceAccessories?.glassesTransform"
+      :clip-path="`url(#${glassesClipId})`"
+      fill="none"
+      :stroke="glassesInk"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class="cursor-grab touch-none active:cursor-grabbing"
+      @pointerdown="startAccessoryDrag('glasses', $event)"
+    >
+      <path v-if="pont" :d="pont" :stroke-width="3.5 * glassesScale" />
+      <path
+        v-if="pont"
+        :d="pont"
+        :stroke="glassesHighlight"
+        :stroke-width="1.1 * glassesScale"
+        stroke-opacity="0.6"
+      />
+      <g
+        v-for="(eye, i) in lunettes"
+        :key="i"
+        data-glass-lens
+        :transform="eye.frameMatrix"
+        :opacity="eye.alpha"
+        class="cursor-grab touch-none active:cursor-grabbing"
+        @pointerdown="startAccessoryDrag('glasses', $event, eye.outside < 0 ? 'left' : 'right')"
+      >
+        <path
+          :d="`M${eye.outside * eye.width * 0.47} ${-eye.height * 0.12} Q${eye.outside * eye.width * 0.7} ${-eye.height * 0.22} ${eye.outside * eye.width * 0.88} ${eye.height * 0.03}`"
+          :stroke-width="3.2 * glassesScale"
+        />
+        <path
+          v-if="props.glassesStyle === 'sun'"
+          data-sunglasses-lens
+          :d="glassesLensPath(props.glassesStyle, eye.width, eye.height, eye.outside < 0)"
+          :fill="glassesTint"
+          :fill-opacity="showEyesWithGlasses ? 0.42 : 0.96"
+          stroke="none"
+        />
+        <path
+          v-else
+          :d="glassesLensPath(props.glassesStyle, eye.width, eye.height, eye.outside < 0)"
+          :fill="glassesInk"
+          fill-opacity="0.045"
+          stroke="none"
+        />
+        <path
+          data-glass-frame
+          :d="glassesLensPath(props.glassesStyle, eye.width, eye.height, eye.outside < 0)"
+          :stroke-width="(props.glassesStyle === 'sun' ? 4 : 3.5) * glassesScale"
+        />
+        <path
+          :d="`M${-eye.width * 0.3} ${-eye.height * 0.3} Q0 ${-eye.height * 0.48} ${eye.width * 0.29} ${-eye.height * 0.3}`"
+          :stroke="glassesHighlight"
+          :stroke-width="1.15 * glassesScale"
+          stroke-opacity="0.78"
+        />
+      </g>
+    </g>
     <g v-if="!frame.dotsBehind">
       <component
         :is="dot.d ? 'path' : 'circle'"

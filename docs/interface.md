@@ -65,6 +65,56 @@ applies at every size, and, more importantly, a `transition` redeclared in the
 block below **evicts opacity**. A property absent from the list stops transitioning
 altogether, so the ball would appear all at once.
 
+## Glasses follow the rendered eyes
+
+The customiser's glasses are SVG accessories, not a second face drawing. Each
+lens uses the eye's rendered position and head-orientation matrix, while its
+size follows that eye's current expression; a blink therefore doesn't squash
+the frame. The lenses are clipped to the current silhouette, and the animated
+SVG export animates their transforms alongside the eyes. Frame style, frame
+colour and eye colour are customiser choices, not measurements of the bot.
+
+The six selector icons and the avatar share the same lens-path generator, so a
+selected shape is the one actually drawn on the character. Frames have fitted
+temples and a highlighted bridge; sunglasses use a wider rounded lens with a
+dark tint and reflection. By default, glasses hide the eyes beneath the frames;
+the customiser can show them instead, using the selected eye colour. This choice
+is saved per body shape, and the animation editor can override it per block.
+
+The customiser also offers nine moustache shapes and eight mouth
+shapes, with controls for colour, size, rotation and contour. Moustache and
+mouth share one face-accessory group and are mutually exclusive: choosing one
+removes the other. Only the selected tool shows its controls. The mouth uses one
+colour throughout, and its shape is used in the customiser, animation editor,
+previews and exports. The customiser can sweep the eyes from side to side without
+rotating the character, and the animation export dialog offers the same option
+for the montage. Each accessory can be
+dragged directly on the avatar to adjust its position; their
+transforms follow the rendered eye centres and are included in animated
+exports. Their scale is based on a
+fixed idle-face reference while position and angle follow the animated eyes, so
+expressions do not stretch them. Position, size, rotation, curve and roundness are
+saved separately for each body shape. The animation editor can override those
+settings per block and body shape; the override stays with its block when the
+montage is reordered and is used by its thumbnail and video render. Each glasses
+lens can be repositioned independently by dragging it or using
+its left/right controls. The controls show only the selected lens, and switching sides
+replaces the open controls rather than stacking them. Those offsets are saved with the
+accessory layout. The customiser keeps only one accessory panel visible at a time.
+Its compact icon row switches between the mouth, moustache and glasses; selecting
+one hides the other panels and their controls.
+Dragging an accessory directly on the avatar also selects it and opens its matching
+panel automatically. The selected accessory is shared with the animation editor,
+so selecting it in either view keeps the matching controls active when switching
+between customisation and animation. In the animation editor, glasses, moustache
+and mouth share one compact icon row below the pose palette. Detailed controls
+stay collapsed until an accessory is selected, so the row takes only its own
+height; the pose palette and expanded controls scroll independently. On narrow
+screens the panel returns to the normal page flow.
+Roundness
+alters the actual SVG silhouette, including selector previews and exports. Older
+saved placements keep their previous default outline.
+
 ## Horizontal clipping is on `#app`, not on `body`
 
 The body's `overflow` is **propagated to the viewport** when the root is `visible`,

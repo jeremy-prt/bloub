@@ -2,10 +2,9 @@ import { clampDuration, makeBlock, type Block } from '@/bot/cycles'
 import { TOUR_TIME, tourLook } from './gaze'
 
 /**
- * L'arrivee sur le site : la boule parait seule au centre de la page, les yeux
- * font un tour complet autour d'elle et viennent se poser au milieu — elle a
- * l'air de tourner sur elle-meme — puis elle glisse a sa place pendant que
- * l'interface apparait autour d'elle.
+ * L'arrivee sur le site : la boule parait seule au centre de la page, le regard
+ * balaie de gauche a droite puis revient a sa pose, avant que la boule glisse a
+ * sa place pendant que l'interface apparait autour d'elle.
  *
  * Pur, comme `gaze.ts` et `timeline.ts` : le montage et la regle de declenchement
  * se decident ici et se testent sans DOM ni composant. `App.vue` ne fait que les
@@ -44,7 +43,7 @@ export const INTRO: Block[] = [
  */
 export const POSE_AT = 1
 
-/** Ce que font les yeux pendant l'arrivee. Voir `tourLook` dans `./gaze`. */
+/** Le regard balaie horizontalement pendant l'arrivee, sans incliner la boule. */
 export const INTRO_GAZE = tourLook
 
 /** Ce que l'application sait de l'arrivee au moment de decider. */

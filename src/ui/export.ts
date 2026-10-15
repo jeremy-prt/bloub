@@ -194,7 +194,7 @@ export const couleurDeFond = (fond: FondGif) => (fond === 'blanc' ? BLANC : null
  *
  * Le catalogue ne porte que des **ids** : les libelles sont resolus par
  * `t('export.<id>')`, et l'union litterale au-dessus fait verifier a la
- * compilation que chacun a sa traduction dans les trois langues.
+ * compilation que chacun a sa traduction dans toutes les langues.
  */
 export const ACTIONS: ActionExport[] = [
   { id: 'png', mode: 'telecharge', taille: 1024, extension: 'png' },
